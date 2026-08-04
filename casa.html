@@ -197,8 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -393,7 +393,7 @@ function viewCaixa(){
 const [a,m]=comp.split('-').map(Number);const ndm=new Date(a,m,0).getDate();
 const ev=[];
 (DB.config.entradas||[]).forEach(e=>{const m2=mes();const v=m2.entradas[e.id]&&m2.entradas[e.id].valor!=null?m2.entradas[e.id].valor:e.valor;
-ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:v,tipo:'in'})});
+ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:v,tipo:'in',id:e.id})});
 contasOrd().forEach(c=>ev.push({dia:Math.min(c.dia,ndm),nome:c.nome,valor:-valorConta(c),tipo:'out',pago:pagoConta(c)}));
 ev.sort((x,y)=>x.dia-y.dia||(x.tipo==='in'?-1:1));
 if(!(DB.config.entradas||[]).length){
@@ -404,7 +404,7 @@ let saldo=0,h='<div class="card">',pior={v:0,dia:null};
 ev.forEach(e=>{
 saldo+=e.valor;
 if(saldo<pior.v){pior={v:saldo,dia:e.dia}}
-h+=`<div class="saldo-row"><span class="dia">${e.dia}</span><span class="rnome">${esc(e.nome)}</span>
+h+=`<div class="saldo-row"${e.id?` onclick="editaEntrada('${e.id}')" style="cursor:pointer"`:''}><span class="dia">${e.dia}</span><span class="rnome">${esc(e.nome)}</span>
 <span class="sv ${e.valor<0?'':'pos'}">${e.valor<0?'−':'+'}${br(Math.abs(e.valor))}</span>
 <span class="sv ${saldo<0?'neg':''}" style="min-width:74px;text-align:right;color:${saldo<0?'var(--alert)':'var(--ink-faint)'}">${br(saldo)}</span></div>`;
 });
@@ -424,7 +424,20 @@ m.despesas.forEach(d=>porCat[d.cat]=(porCat[d.cat]||0)+d.valor);
 const ent=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
 const tot=ent.reduce((s,e)=>s+e[1],0);
 const naoClass=contasOrd().filter(c=>c.tipo==='cartao').reduce((s,c)=>s+Math.max(0,valorConta(c)-despesasCartao(c.id).reduce((t,d)=>t+d.valor,0)),0);
+const fixas=contasOrd().filter(c=>c.tipo!=='cartao'&&!c.pt);
+const sFix=fixas.reduce((s,c)=>s+valorConta(c),0);
+const sParcC=contasOrd().filter(c=>c.pt).reduce((s,c)=>s+valorConta(c),0);
+const sParcD=m.despesas.filter(d=>d.pt&&d.pa).reduce((s,d)=>s+d.valor,0);
+const comp=sFix+sParcC+sParcD, totMes=totalMes();
 let h='';
+if(comp>0){
+h+=`<div class="eyebrow">já comprometido antes de qualquer decisão</div><div class="card">
+<div class="row"><span class="rnome">Fixas sem prazo pra acabar</span><span class="rval">${br(sFix)}</span></div>
+<div class="row"><span class="rnome">Parcelas com prazo</span><span class="rval">${br(sParcC+sParcD)}</span></div>
+<div class="bar-wrap"><div class="bar-top"><span>Total comprometido</span><b>${brc(comp)} · ${totMes>0?Math.round(comp/totMes*100):0}% do mês</b></div>
+<div class="bar"><i style="width:${totMes>0?Math.min(100,Math.round(comp/totMes*100)):0}%"></i></div>
+<div class="hint">O resto da fatura é consumo do mês — a parte sobre a qual vocês ainda decidem.</div></div></div>`;
+}
 if(naoClass>0.05)h+=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Ainda sem classificar</span><b>${brc(naoClass)}</b></div>
 <div class="hint">Faturas de cartão lançadas só pelo total. Enquanto esse número for alto, o gráfico abaixo conta meia verdade.</div></div></div>`;
 if(!ent.length)return h+`<div class="vazio"><b>Sem gastos ainda</b>Importe uma fatura na aba Cartões.</div>`;
@@ -447,14 +460,13 @@ h+='</div><div class="foot">Quando a última parcela cair, esse valor volta pro 
 }
 const dp=m.despesas.filter(d=>d.pt&&d.pa);
 if(dp.length){
-const somaP=dp.reduce((s,d)=>s+d.valor,0);
 h+=`<div class="eyebrow">compras parceladas nas faturas</div><div class="card">`;
 dp.slice().sort((a,b)=>(a.pt-a.pa)-(b.pt-b.pa)).forEach(d=>{
 const rest=d.pt-d.pa;
 h+=`<div class="row"><span class="rnome">${esc(d.desc)}</span>
 <span class="rsub">${rest>0?'faltam '+rest:'última'}</span><span class="rval">${br(d.valor)}</span></div>`;
 });
-h+=`</div><div class="foot">${brc(somaP)} por mês já comprometidos antes de você comprar qualquer coisa.</div>`;
+h+=`</div><div class="foot">Essas somem sozinhas quando a última parcela cair.</div>`;
 }
 return h;
 }
