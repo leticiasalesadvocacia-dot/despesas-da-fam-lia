@@ -197,8 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -444,15 +444,22 @@ if(!ds.length&&c.pt)v=fat;
 if(v>fat+0.05)estouram.push(c.nome);
 sParcD+=Math.min(v,fat);
 });
-const comp=sFix+sParcC+sParcD, totMes=totalMes();
+const comp=sFix+sParcC+sParcD;
+const renda=(DB.config.entradas||[]).reduce((s,e)=>s+valorEntrada(e),0);
+const pct=renda>0?Math.round(comp/renda*100):null;
+const sobra=renda-comp;
 let h='';
 if(comp>0){
 h+=`<div class="eyebrow">já comprometido antes de qualquer decisão</div><div class="card">
 <div class="row"><span class="rnome">Fixas sem prazo pra acabar</span><span class="rval">${br(sFix)}</span></div>
 <div class="row"><span class="rnome">Parcelas com prazo</span><span class="rval">${br(sParcC+sParcD)}</span></div>
-<div class="bar-wrap"><div class="bar-top"><span>Total comprometido</span><b>${brc(comp)} · ${totMes>0?Math.round(comp/totMes*100):0}% do mês</b></div>
-<div class="bar"><i style="width:${totMes>0?Math.min(100,Math.round(comp/totMes*100)):0}%"></i></div>
-<div class="hint">O resto da fatura é consumo do mês — a parte sobre a qual vocês ainda decidem.${estouram.length?` <b>Atenção:</b> em ${estouram.join(', ')} as parcelas lançadas passam do valor cadastrado da fatura. Ajuste a fatura na aba Mês.`:''}</div></div></div>`;
+<div class="bar-wrap"><div class="bar-top"><span>Total comprometido</span><b class="${pct!==null&&pct>100?'neg':''}">${brc(comp)}${pct!==null?` · ${pct}% da renda`:''}</b></div>
+<div class="bar"><i style="width:${pct!==null?Math.min(100,pct):0}%;background:${pct!==null&&pct>100?'var(--alert)':'var(--accent)'}"></i></div>
+<div class="hint">${pct===null
+?'Cadastre as entradas na aba Caixa para ver quanto isso representa do que entra. Sem elas o número não tem contra o que ser comparado.'
+:(sobra>=0
+?`Sobram ${brc(sobra)} da renda para mercado, restaurante, combustível e tudo mais que se decide no mês.`
+:`O comprometido já passa a renda em ${brc(-sobra)} antes de qualquer gasto do mês.`)}${estouram.length?` <b>Atenção:</b> em ${estouram.join(', ')} as parcelas lançadas passam do valor cadastrado da fatura.`:''}</div></div></div>`;
 }
 if(naoClass>0.05)h+=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Ainda sem classificar</span><b>${brc(naoClass)}</b></div>
 <div class="hint">Faturas de cartão lançadas só pelo total. Enquanto esse número for alto, o gráfico abaixo conta meia verdade.</div></div></div>`;
