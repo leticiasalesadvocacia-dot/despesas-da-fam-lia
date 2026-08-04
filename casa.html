@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#14231D"/>
+<title>Casa · contas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+--ink:#14231D; --ink-soft:#4A5B54; --ink-faint:#8A9791;
+--ground:#EAEEE9; --paper:#FFFFFF; --line:#D5DCD6; --line-soft:#E6EAE5;
+--accent:#1F6F5C; --accent-bg:#DCEBE5;
+--alert:#B33A28; --alert-bg:#F6E3DF;
+--warn:#B0810F; --warn-bg:#F6EDD8;
+--r:10px;
+--mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+html,body{height:100%}
+body{font-family:'Archivo',system-ui,sans-serif;background:var(--ground);color:var(--ink);
+display:flex;flex-direction:column;overflow:hidden;font-size:15px;line-height:1.5;
+-webkit-font-smoothing:antialiased}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+
+header{background:var(--ink);color:#F0F3EF;padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;flex-shrink:0}
+.hrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.mes-nav{display:flex;align-items:center;gap:10px}
+.mes-nav button{background:none;border:none;color:#F0F3EF;opacity:.5;font-size:20px;padding:2px 6px;cursor:pointer;line-height:1}
+.mes-nav button:active{opacity:1}
+.mes-label{font-family:'Fraunces',Georgia,serif;font-size:19px;font-weight:600;letter-spacing:-0.01em}
+.hsub{font-size:11px;letter-spacing:.09em;text-transform:uppercase;opacity:.45;font-weight:500}
+.htotais{display:flex;gap:20px;margin-top:12px}
+.ht{flex:1}
+.ht .lab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.45;font-weight:500;display:block;margin-bottom:2px}
+.ht .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:17px;font-weight:500}
+
+.fita{display:flex;gap:2px;align-items:flex-end;height:44px;margin-top:14px}
+.fd{flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-end;height:100%;cursor:pointer;min-width:0}
+.fd i{display:block;background:rgba(240,243,239,.22);border-radius:2px 2px 0 0;min-height:2px;transition:background .15s}
+.fd.on i{background:#8FD3BC}
+.fd.pago i{background:rgba(240,243,239,.13)}
+.fd.sel i{background:#F0F3EF}
+.fdlab{font-family:var(--mono);font-size:8px;opacity:.35;text-align:center;margin-top:3px;height:10px}
+
+nav{display:flex;background:var(--paper);border-bottom:1px solid var(--line);flex-shrink:0}
+nav button{flex:1;background:none;border:none;padding:11px 4px 9px;font-family:inherit;font-size:12px;font-weight:500;
+color:var(--ink-faint);border-bottom:2px solid transparent;cursor:pointer}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px calc(env(safe-area-inset-bottom) + 90px)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.card h3{font-family:'Fraunces',Georgia,serif;font-size:15px;font-weight:600;padding:12px 14px 10px;border-bottom:1px solid var(--line-soft);
+display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card h3 span{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:20px 2px 8px}
+.eyebrow:first-child{margin-top:2px}
+
+.row{display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.row:last-child{border-bottom:none}
+.dia{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-soft);width:22px;text-align:right;flex-shrink:0}
+.dia.rep{color:var(--ink-faint);font-weight:400}
+.rnome{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsub{font-size:11px;color:var(--ink-faint);white-space:nowrap}
+.rval{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;font-weight:500;flex-shrink:0}
+.chk{width:20px;height:20px;border:1.5px solid var(--line);border-radius:5px;flex-shrink:0;cursor:pointer;
+display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;background:var(--paper)}
+.chk.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.row.pago .rnome,.row.pago .rval,.row.pago .dia{color:var(--ink-faint);text-decoration:line-through;text-decoration-thickness:1px}
+
+.pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;letter-spacing:.02em;white-space:nowrap}
+.p-cart{background:var(--warn-bg);color:var(--warn)}
+.p-parc{background:var(--accent-bg);color:var(--accent)}
+.p-alert{background:var(--alert-bg);color:var(--alert)}
+
+button.act{font-family:inherit;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--r);
+border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+button.act:active{background:var(--ground)}
+button.act.pri{background:var(--ink);color:#F0F3EF;border-color:var(--ink)}
+.btns{display:flex;gap:8px;padding:12px 14px}
+.btns button{flex:1}
+
+.bar-wrap{padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.bar-wrap:last-child{border-bottom:none}
+.bar-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:5px;gap:8px}
+.bar-top b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--ground);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+
+.saldo-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.saldo-row:last-child{border-bottom:none}
+.saldo-row .sv{font-family:var(--mono);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:500}
+.neg{color:var(--alert)}
+.pos{color:var(--accent)}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(20,35,29,.5);z-index:50;display:none}
+.sheet-bg.on{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--paper);z-index:51;border-radius:16px 16px 0 0;
+max-height:92vh;display:none;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.sheet.on{display:flex}
+.sheet-h{padding:14px 16px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center}
+.sheet-h b{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:600}
+.sheet-h button{background:none;border:none;font-size:22px;color:var(--ink-faint);cursor:pointer;line-height:1;padding:0 4px}
+.sheet-b{overflow-y:auto;padding:14px 16px;flex:1}
+label.f{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:12px 0 5px}
+label.f:first-child{margin-top:0}
+input,select,textarea{width:100%;font-family:inherit;font-size:16px;padding:10px 11px;border:1px solid var(--line);
+border-radius:var(--r);background:var(--paper);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+input.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+textarea{min-height:130px;font-family:var(--mono);font-size:13px;line-height:1.55;resize:vertical}
+.duo{display:flex;gap:9px}
+.duo>div{flex:1}
+.hint{font-size:12px;color:var(--ink-faint);margin-top:6px;line-height:1.45}
+.prev{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:10px}
+.prev-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.prev-row:last-child{border-bottom:none}
+.prev-row .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prev-row select{width:auto;font-size:12px;padding:4px 6px;border-radius:6px}
+.prev-row .pv{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px}
+.vazio{text-align:center;padding:34px 20px;color:var(--ink-faint);font-size:13px;line-height:1.6}
+.vazio b{display:block;font-family:'Fraunces',Georgia,serif;font-size:15px;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
+.fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 18px);width:52px;height:52px;border-radius:50%;
+background:var(--ink);color:#F0F3EF;border:none;font-size:26px;line-height:1;cursor:pointer;z-index:20;
+box-shadow:0 3px 14px rgba(20,35,29,.28)}
+.foot{text-align:center;font-size:11px;color:var(--ink-faint);padding:14px 0 4px}
+.foot button{background:none;border:none;color:var(--ink-faint);font-family:inherit;font-size:11px;text-decoration:underline;cursor:pointer}
+#modo{cursor:pointer}
+.login{position:fixed;inset:0;background:var(--ink);z-index:80;display:none;flex-direction:column;
+align-items:center;justify-content:center;padding:28px}
+.login.on{display:flex}
+.login .box{width:100%;max-width:330px}
+.login h1{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:600;color:#F0F3EF;margin-bottom:4px}
+.login p{font-size:13px;color:rgba(240,243,239,.5);margin-bottom:22px;line-height:1.5}
+.login label{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+color:rgba(240,243,239,.45);font-weight:600;margin:0 0 5px}
+.login input{background:rgba(240,243,239,.07);border-color:rgba(240,243,239,.16);color:#F0F3EF;margin-bottom:14px}
+.login input:focus{border-color:#8FD3BC;box-shadow:none}
+.login button{width:100%;background:#8FD3BC;color:var(--ink);border:none;border-radius:var(--r);
+padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
+.login .erro{font-size:13px;color:#F0A79A;margin-top:12px;line-height:1.45;min-height:18px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div class="mes-nav">
+      <button onclick="mudaMes(-1)" aria-label="Mês anterior" id="btnPrev">‹</button>
+      <span class="mes-label" id="mesLabel">agosto 2026</span>
+      <button onclick="mudaMes(1)" aria-label="Próximo mês">›</button>
+    </div>
+    <span class="hsub" id="modo" onclick="sair()">local</span>
+  </div>
+  <div class="htotais">
+    <div class="ht"><span class="lab">a pagar</span><span class="val" id="tApagar">—</span></div>
+    <div class="ht"><span class="lab">já pago</span><span class="val" id="tPago">—</span></div>
+    <div class="ht"><span class="lab">total mês</span><span class="val" id="tTotal">—</span></div>
+  </div>
+  <div class="fita" id="fita"></div>
+</header>
+
+<nav>
+  <button class="on" data-t="mes" onclick="aba('mes')">Mês</button>
+  <button data-t="cartoes" onclick="aba('cartoes')">Cartões</button>
+  <button data-t="caixa" onclick="aba('caixa')">Caixa</button>
+  <button data-t="gastos" onclick="aba('gastos')">Gastos</button>
+</nav>
+
+<main id="main"></main>
+<button class="fab" id="fab" onclick="fabAcao()">+</button>
+
+<div class="login" id="login">
+  <div class="box">
+    <h1>Casa</h1>
+    <p>As contas de vocês dois, no mesmo lugar.</p>
+    <label for="lgEmail">E-mail</label>
+    <input id="lgEmail" type="email" autocomplete="username" inputmode="email"/>
+    <label for="lgSenha">Senha</label>
+    <input id="lgSenha" type="password" autocomplete="current-password"/>
+    <button onclick="entrar()" id="lgBtn">Entrar</button>
+    <div class="erro" id="lgErro"></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="sbg" onclick="fecha()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-h"><b id="sheetT"></b><button onclick="fecha()" aria-label="Fechar">×</button></div>
+  <div class="sheet-b" id="sheetB"></div>
+</div>
+
+<script>
+// Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
+// o app só neste aparelho, sem sincronizar.
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
+
+const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
+const INICIO='2026-08';
+const REGRAS={
+Mercado:['angeloni','bistek','koch','giassi','super','mercado','atacad','carrefour','assai','hortifruti','padaria','panific','acougue','açougue','fort atacad'],
+'Combustível':['posto','ipiranga','shell','petrobras','texaco','ale comb','br mania','combustivel','combustível'],
+Restaurante:['restaurante','ifood','rappi','burger','pizza','cafe','café','lanche','sushi','churras','bar ','padoca','doceria','sorvet'],
+'Farmácia':['farmacia','farmácia','drogaria','panvel','drogasil','raia','pague menos'],
+Casa:['claro','vivo','tim ','celesc','internet','netflix','spotify','disney','prime','energia','agua','água','gas ','condominio','condomínio'],
+Carro:['sem parar','estacionamento','oficina','pneu','ipva','licenciamento','uber','99app','99 ','lavacao','lava'],
+Compras:['renner','riachuelo','zara','magalu','americanas','shopee','shein','mercado livre','mercadolivre','amazon','centauro','decathlon','havan'],
+'Saúde':['clinica','clínica','laborat','dentist','hospital','unimed','exame','psicol','fisiot'],
+Lazer:['cinema','hotel','airbnb','latam','gol lin','azul lin','decolar','booking','ingresso','viagem']
+};
+
+let DB={config:{contas:[],entradas:[]},meses:{}};
+let hoje=new Date(), comp=ym(hoje), tab='mes', diaSel=null, sb=null, pendentes=[];
+
+function ym(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function nomeMes(c){const [a,m]=c.split('-');return ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][+m-1]+' '+a}
+function br(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function brc(v){return 'R$ '+br(v)}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+const SEED=[];
+
+const store={
+get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return (this.m||{})[k]||null}},
+set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){this.m=this.m||{};this.m[k]=v}}
+};
+
+function seed(){
+DB.config.contas=SEED.map(s=>({id:uid(),nome:s.nome,dia:s.dia,valor:s.valor,cat:s.cat,tipo:s.tipo,pa:s.pa||null,pt:s.pt||null,pcomp:s.pcomp||null}));
+DB.config.entradas=[];
+}
+
+async function carrega(){
+if(sb){
+const {data,error}=await sb.from('casa_dados').select('chave,dados');
+if(error)throw error;
+DB={config:{contas:[],entradas:[]},meses:{}};
+(data||[]).forEach(r=>{if(r.chave==='config')DB.config=r.dados;else if(r.chave!=='versao')DB.meses[r.chave]=r.dados});
+const v=(data||[]).find(r=>r.chave==='versao');
+DB.versao=v?v.dados.n:undefined;
+document.getElementById('modo').textContent='sair';
+}else{
+const l=store.get('casa_db');if(l)DB=l;
+document.getElementById('modo').textContent='só neste aparelho';
+}
+if(!DB.config.contas||!DB.config.contas.length)seed();
+if(DB.versao!==2){
+Object.keys(DB.meses).forEach(k=>{if(k<INICIO)delete DB.meses[k]});
+DB.config.contas.forEach(c=>{if(c.pt&&(!c.pcomp||c.pcomp<INICIO))c.pcomp=INICIO});
+DB.versao=2;
+}
+if(comp<INICIO)comp=INICIO;
+salva();
+}
+function salva(){
+Object.keys(DB.meses).forEach(k=>{const m=DB.meses[k];
+if(k!==comp&&!Object.keys(m.contas||{}).length&&!Object.keys(m.entradas||{}).length&&!(m.despesas||[]).length)delete DB.meses[k]});
+if(sb){
+const linhas=[{chave:'config',dados:DB.config},{chave:'versao',dados:{n:DB.versao}}];
+if(DB.meses[comp])linhas.push({chave:comp,dados:DB.meses[comp]});
+sb.from('casa_dados').upsert(linhas).then(({error})=>{if(error)console.warn(error)});
+}
+store.set('casa_db',DB);
+}
+
+function mes(){
+if(!DB.meses[comp])DB.meses[comp]={contas:{},entradas:{},despesas:[]};
+const m=DB.meses[comp];
+m.contas=m.contas||{};m.entradas=m.entradas||{};m.despesas=m.despesas||[];
+return m;
+}
+function valorConta(c){const m=mes();return m.contas[c.id]&&m.contas[c.id].valor!=null?m.contas[c.id].valor:c.valor}
+function difMes(a,b){const[ay,am]=a.split('-').map(Number),[by,bm]=b.split('-').map(Number);return (by-ay)*12+(bm-am)}
+function parcelaNo(c,cp){if(!c.pt)return null;return (c.pa||1)+difMes(c.pcomp||comp,cp||comp)}
+function ativa(c,cp){const n=parcelaNo(c,cp);return n===null||(n>=1&&n<=c.pt)}
+function contasOcultas(){return DB.config.contas.filter(c=>!ativa(c))}
+function pagoConta(c){const m=mes();return !!(m.contas[c.id]&&m.contas[c.id].pago)}
+function setConta(id,patch){const m=mes();m.contas[id]=Object.assign({},m.contas[id],patch);salva();render()}
+function contasOrd(){return DB.config.contas.filter(c=>ativa(c)).sort((a,b)=>a.dia-b.dia||a.nome.localeCompare(b.nome))}
+function totalMes(){return contasOrd().reduce((s,c)=>s+valorConta(c),0)}
+function totalPago(){return contasOrd().filter(pagoConta).reduce((s,c)=>s+valorConta(c),0)}
+function despesasCartao(id){return mes().despesas.filter(d=>d.cartao===id)}
+
+function mudaMes(n){const [a,m]=comp.split('-').map(Number);const d=new Date(a,m-1+n,1);const novo=ym(d);
+if(novo<INICIO)return;comp=novo;diaSel=null;render()}
+function aba(t){tab=t;diaSel=null;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));render()}
+
+function render(){
+document.getElementById('mesLabel').textContent=nomeMes(comp);
+document.getElementById('btnPrev').style.visibility=comp<=INICIO?'hidden':'visible';
+const tot=totalMes(),pg=totalPago();
+document.getElementById('tApagar').textContent=br(tot-pg);
+document.getElementById('tPago').textContent=br(pg);
+document.getElementById('tTotal').textContent=br(tot);
+renderFita();
+const M=document.getElementById('main');
+M.innerHTML=tab==='mes'?viewMes():tab==='cartoes'?viewCartoes():tab==='caixa'?viewCaixa():viewGastos();
+M.scrollTop=0;
+}
+
+function renderFita(){
+const [a,m]=comp.split('-').map(Number);
+const nd=new Date(a,m,0).getDate();
+const porDia={};
+contasOrd().forEach(c=>{const d=Math.min(c.dia,nd);(porDia[d]=porDia[d]||{v:0,pago:true});porDia[d].v+=valorConta(c);if(!pagoConta(c))porDia[d].pago=false});
+const max=Math.max(1,...Object.values(porDia).map(o=>o.v));
+let h='';
+for(let d=1;d<=nd;d++){
+const o=porDia[d];
+const alt=o?Math.max(3,Math.round(o.v/max*34)):0;
+const cls=['fd'];if(o)cls.push('on');if(o&&o.pago)cls.push('pago');if(diaSel===d)cls.push('sel');
+h+=`<div class="${cls.join(' ')}" onclick="selDia(${d})" title="dia ${d}"><i style="height:${alt}px"></i><span class="fdlab">${d%5===0||d===1?d:''}</span></div>`;
+}
+document.getElementById('fita').innerHTML=h;
+}
+function selDia(d){diaSel=diaSel===d?null:d;if(tab!=='mes')aba('mes');else render()}
+
+function viewMes(){
+const [a,m]=comp.split('-').map(Number);const ndm=new Date(a,m,0).getDate();
+let cs=contasOrd();
+if(!DB.config.contas.length)return `<div class="vazio"><b>Nenhuma conta cadastrada</b>Cole de uma vez a lista das contas do mês, ou adicione uma por uma.</div>
+<div class="btns"><button class="act pri" onclick="importarContas()">Colar minha lista</button><button class="act" onclick="editaConta()">Adicionar uma</button></div>`;
+if(diaSel)cs=cs.filter(c=>Math.min(c.dia,ndm)===diaSel);
+if(!cs.length)return `<div class="vazio"><b>Nada no dia ${diaSel}</b>Toque de novo na barra pra ver o mês inteiro.</div>`;
+let h='';
+if(diaSel)h+=`<div class="eyebrow">dia ${diaSel} · ${brc(cs.reduce((s,c)=>s+valorConta(c),0))}</div>`;
+h+='<div class="card">';
+let ultDia=null;
+cs.forEach(c=>{
+const d=Math.min(c.dia,ndm),pg=pagoConta(c);
+const parc=c.pt?`<span class="pill p-parc">${parcelaNo(c)}/${c.pt}</span>`:'';
+const cart=c.tipo==='cartao'?`<span class="pill p-cart">fatura</span>`:'';
+h+=`<div class="row ${pg?'pago':''}">
+<span class="dia ${d===ultDia?'rep':''}">${d}</span>
+<span class="rnome" onclick="editaConta('${c.id}')">${esc(c.nome)} ${parc}${cart}</span>
+<span class="rval" onclick="editaConta('${c.id}')">${br(valorConta(c))}</span>
+<span class="chk ${pg?'on':''}" onclick="setConta('${c.id}',{pago:${!pg}})">✓</span>
+</div>`;
+ultDia=d;
+});
+h+='</div>';
+const oc=contasOcultas();
+h+=`<div class="foot">Toque no nome pra editar o valor do mês. <button onclick="editaConta()">Adicionar conta</button>`;
+if(oc.length)h+=`<br/><button onclick="verOcultas()">${oc.length} fora deste mês</button>`;
+h+=`</div>`;
+return h;
+}
+
+function verOcultas(){
+const oc=contasOcultas();
+let h='<div class="prev">';
+oc.forEach(c=>{
+const n=parcelaNo(c);
+const st=n>c.pt?`encerrou na ${c.pt}ª`:`começa na ${c.pcomp?nomeMes(c.pcomp):'—'}`;
+h+=`<div class="prev-row" onclick="editaConta('${c.id}')"><span class="pn">${esc(c.nome)}</span>
+<span class="rsub">${st}</span><span class="pv">${br(c.valor)}</span></div>`;
+});
+h+='</div><div class="hint">Elas somem do mês porque as parcelas acabaram — é assim que o valor volta pro seu caixa. Toque numa pra editar ou excluir.</div>';
+abre('Fora deste mês',h);
+}
+
+function viewCartoes(){
+const carts=contasOrd().filter(c=>c.tipo==='cartao');
+if(!carts.length)return `<div class="vazio"><b>Nenhum cartão cadastrado</b>Adicione um na aba Mês.</div>`;
+let h='';
+carts.forEach(c=>{
+const ds=despesasCartao(c.id),lanc=ds.reduce((s,d)=>s+d.valor,0),fat=valorConta(c),falta=fat-lanc;
+h+=`<div class="card"><h3>${esc(c.nome)}<span>${br(fat)}</span></h3>`;
+if(ds.length){
+const porCat={};ds.forEach(d=>porCat[d.cat]=(porCat[d.cat]||0)+d.valor);
+Object.entries(porCat).sort((x,y)=>y[1]-x[1]).forEach(([k,v])=>{
+h+=`<div class="row"><span class="rnome">${esc(k)}</span><span class="rval">${br(v)}</span></div>`;
+});
+}
+const pct=fat>0?Math.min(100,Math.round(lanc/fat*100)):0;
+h+=`<div class="bar-wrap"><div class="bar-top"><span>${ds.length} lançamento${ds.length===1?'':'s'} · ${pct}% da fatura</span>
+<b class="${Math.abs(falta)<0.05?'pos':''}">${falta>0.05?'falta '+br(falta):Math.abs(falta)<0.05?'fechado':'excede '+br(-falta)}</b></div>
+<div class="bar"><i style="width:${pct}%"></i></div></div>`;
+h+=`<div class="btns"><button class="act" onclick="importar('${c.id}')">Importar lista</button><button class="act" onclick="lancar('${c.id}')">Digitar um</button></div>`;
+if(ds.length)h+=`<div class="btns" style="padding-top:0"><button class="act" onclick="verLancamentos('${c.id}')">Ver os ${ds.length} lançamentos</button></div>`;
+h+='</div>';
+});
+return h;
+}
+
+function viewCaixa(){
+const [a,m]=comp.split('-').map(Number);const ndm=new Date(a,m,0).getDate();
+const ev=[];
+(DB.config.entradas||[]).forEach(e=>{const m2=mes();const v=m2.entradas[e.id]&&m2.entradas[e.id].valor!=null?m2.entradas[e.id].valor:e.valor;
+ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:v,tipo:'in'})});
+contasOrd().forEach(c=>ev.push({dia:Math.min(c.dia,ndm),nome:c.nome,valor:-valorConta(c),tipo:'out',pago:pagoConta(c)}));
+ev.sort((x,y)=>x.dia-y.dia||(x.tipo==='in'?-1:1));
+if(!(DB.config.entradas||[]).length){
+return `<div class="vazio"><b>Falta cadastrar o que entra</b>Sem as entradas eu não consigo projetar o saldo. Cadastre salários, pró-labore, aluguéis — o que entra e em que dia.</div>
+<div class="btns"><button class="act pri" onclick="editaEntrada()">Cadastrar entrada</button></div>`;
+}
+let saldo=0,h='<div class="card">',pior={v:0,dia:null};
+ev.forEach(e=>{
+saldo+=e.valor;
+if(saldo<pior.v){pior={v:saldo,dia:e.dia}}
+h+=`<div class="saldo-row"><span class="dia">${e.dia}</span><span class="rnome">${esc(e.nome)}</span>
+<span class="sv ${e.valor<0?'':'pos'}">${e.valor<0?'−':'+'}${br(Math.abs(e.valor))}</span>
+<span class="sv ${saldo<0?'neg':''}" style="min-width:74px;text-align:right;color:${saldo<0?'var(--alert)':'var(--ink-faint)'}">${br(saldo)}</span></div>`;
+});
+h+='</div>';
+let topo='';
+if(pior.dia)topo=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Pior momento do mês</span><b class="neg">dia ${pior.dia} · ${br(pior.v)}</b></div>
+<div class="hint">Esse é o buraco a cobrir. Se ele é negativo, o mês só fecha com limite ou reserva.</div></div></div>`;
+return topo+`<div class="eyebrow">entradas e saídas em ordem de data</div>`+h+
+`<div class="foot"><button onclick="editaEntrada()">Adicionar entrada</button></div>`;
+}
+
+function viewGastos(){
+const m=mes();
+const porCat={};
+contasOrd().filter(c=>c.tipo!=='cartao').forEach(c=>porCat[c.cat]=(porCat[c.cat]||0)+valorConta(c));
+m.despesas.forEach(d=>porCat[d.cat]=(porCat[d.cat]||0)+d.valor);
+const ent=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+const tot=ent.reduce((s,e)=>s+e[1],0);
+const naoClass=contasOrd().filter(c=>c.tipo==='cartao').reduce((s,c)=>s+Math.max(0,valorConta(c)-despesasCartao(c.id).reduce((t,d)=>t+d.valor,0)),0);
+let h='';
+if(naoClass>0.05)h+=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Ainda sem classificar</span><b>${brc(naoClass)}</b></div>
+<div class="hint">Faturas de cartão lançadas só pelo total. Enquanto esse número for alto, o gráfico abaixo conta meia verdade.</div></div></div>`;
+if(!ent.length)return h+`<div class="vazio"><b>Sem gastos ainda</b>Importe uma fatura na aba Cartões.</div>`;
+const max=ent[0][1];
+h+='<div class="eyebrow">para onde foi o mês</div><div class="card">';
+ent.forEach(([k,v])=>{
+h+=`<div class="bar-wrap"><div class="bar-top"><span>${esc(k)}</span><b>${br(v)} · ${Math.round(v/tot*100)}%</b></div>
+<div class="bar"><i style="width:${Math.round(v/max*100)}%"></i></div></div>`;
+});
+h+='</div>';
+const parc=contasOrd().filter(c=>c.pt);
+if(parc.length){
+h+='<div class="eyebrow">parcelas com prazo pra acabar</div><div class="card">';
+parc.forEach(c=>{
+const at=parcelaNo(c),rest=c.pt-at;
+h+=`<div class="row"><span class="rnome">${esc(c.nome)} <span class="pill p-parc">${at}/${c.pt}</span></span>
+<span class="rsub">${rest>0?'faltam '+rest:'última'}</span><span class="rval">${br(valorConta(c))}</span></div>`;
+});
+h+='</div><div class="foot">Quando a última parcela cair, esse valor volta pro caixa todo mês.</div>';
+}
+return h;
+}
+
+function abre(t,html){document.getElementById('sheetT').textContent=t;document.getElementById('sheetB').innerHTML=html;
+document.getElementById('sbg').classList.add('on');document.getElementById('sheet').classList.add('on')}
+function fecha(){document.getElementById('sbg').classList.remove('on');document.getElementById('sheet').classList.remove('on');pendentes=[]}
+function fabAcao(){if(tab==='cartoes'){const c=contasOrd().find(x=>x.tipo==='cartao');if(c)importar(c.id)}else if(tab==='caixa')editaEntrada();else editaConta()}
+
+function editaConta(id){
+const c=id?DB.config.contas.find(x=>x.id===id):null;
+const m=mes();
+abre(c?c.nome:'Nova conta',`
+<label class="f">Nome</label><input id="fNome" value="${c?esc(c.nome):''}" placeholder="Ex: Luz"/>
+<div class="duo">
+<div><label class="f">Dia</label><input id="fDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${c?c.dia:''}"/></div>
+<div><label class="f">Valor deste mês</label><input id="fValor" class="n" type="text" inputmode="decimal" value="${c?br(valorConta(c)):''}"/></div>
+</div>
+<label class="f">Categoria</label><select id="fCat">${CATS.concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<label class="f">Tipo</label><select id="fTipo">
+<option value="conta" ${c&&c.tipo==='conta'?'selected':''}>Conta comum</option>
+<option value="cartao" ${c&&c.tipo==='cartao'?'selected':''}>Fatura de cartão</option></select>
+<div class="duo">
+<div><label class="f">Parcela nº</label><input id="fPa" class="n" type="number" inputmode="numeric" value="${c&&c.pt?parcelaNo(c):''}" placeholder="—"/></div>
+<div><label class="f">De quantas</label><input id="fPt" class="n" type="number" inputmode="numeric" value="${c&&c.pt?c.pt:''}" placeholder="—"/></div>
+</div>
+<div class="hint">O número da parcela vale para <b>${nomeMes(comp)}</b>. O app avança sozinho nos meses seguintes e tira a conta da lista quando a última cair.</div>
+<div class="btns" style="padding:18px 0 4px">
+${c?`<button class="act" onclick="apagaConta('${c.id}')">Excluir</button>`:''}
+<button class="act pri" onclick="salvaConta(${c?`'${c.id}'`:'null'})">Salvar</button></div>`);
+}
+function num(s){if(!s)return 0;s=String(s).trim().replace(/[R$\s]/g,'');if(s.includes(',')){s=s.replace(/\./g,'').replace(',','.')}return parseFloat(s)||0}
+function salvaConta(id){
+const nome=document.getElementById('fNome').value.trim();
+if(!nome){document.getElementById('fNome').focus();return}
+const dia=Math.max(1,Math.min(31,parseInt(document.getElementById('fDia').value)||1));
+const valor=num(document.getElementById('fValor').value);
+const cat=document.getElementById('fCat').value,tipo=document.getElementById('fTipo').value;
+const pa=parseInt(document.getElementById('fPa').value)||null,pt=parseInt(document.getElementById('fPt').value)||null;
+const pcomp=(pa&&pt)?comp:null;
+if(id){const c=DB.config.contas.find(x=>x.id===id);Object.assign(c,{nome,dia,cat,tipo,pa,pt,pcomp});
+mes().contas[id]=Object.assign({},mes().contas[id],{valor});}
+else{const nid=uid();DB.config.contas.push({id:nid,nome,dia,valor,cat,tipo,pa,pt,pcomp});mes().contas[nid]={valor}}
+salva();fecha();render();
+}
+function apagaConta(id){DB.config.contas=DB.config.contas.filter(x=>x.id!==id);
+Object.values(DB.meses).forEach(m=>{if(m.contas)delete m.contas[id];if(m.despesas)m.despesas=m.despesas.filter(d=>d.cartao!==id)});
+salva();fecha();render()}
+
+function editaEntrada(id){
+const e=id?DB.config.entradas.find(x=>x.id===id):null;
+abre(e?e.nome:'Nova entrada',`
+<label class="f">De onde vem</label><input id="eNome" value="${e?esc(e.nome):''}" placeholder="Ex: Pró-labore"/>
+<div class="duo">
+<div><label class="f">Dia que entra</label><input id="eDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${e?e.dia:''}"/></div>
+<div><label class="f">Valor</label><input id="eValor" class="n" type="text" inputmode="decimal" value="${e?br(e.valor):''}"/></div>
+</div>
+<div class="hint">Cadastre cada entrada separada, com o dia certo. É a data que faz a projeção funcionar, não o total.</div>
+<div class="btns" style="padding:18px 0 4px">
+${e?`<button class="act" onclick="apagaEntrada('${e.id}')">Excluir</button>`:''}
+<button class="act pri" onclick="salvaEntrada(${e?`'${e.id}'`:'null'})">Salvar</button></div>`);
+}
+function salvaEntrada(id){
+const nome=document.getElementById('eNome').value.trim();if(!nome)return;
+const dia=Math.max(1,Math.min(31,parseInt(document.getElementById('eDia').value)||1));
+const valor=num(document.getElementById('eValor').value);
+if(id){Object.assign(DB.config.entradas.find(x=>x.id===id),{nome,dia,valor})}
+else{DB.config.entradas.push({id:uid(),nome,dia,valor})}
+salva();fecha();render();
+}
+function apagaEntrada(id){DB.config.entradas=DB.config.entradas.filter(x=>x.id!==id);salva();fecha();render()}
+
+function categoriza(desc){
+const d=desc.toLowerCase();
+for(const [cat,ks] of Object.entries(REGRAS))for(const k of ks)if(d.includes(k))return cat;
+return 'Outros';
+}
+function lancar(cid){
+abre('Novo lançamento',`
+<label class="f">Descrição</label><input id="lDesc" placeholder="Ex: Posto Ipiranga"/>
+<div class="duo">
+<div><label class="f">Valor</label><input id="lVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
+<div><label class="f">Categoria</label><select id="lCat">${CATS.map(k=>`<option>${k}</option>`).join('')}</select></div>
+</div>
+<div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaLanc('${cid}')">Adicionar</button></div>`);
+document.getElementById('lDesc').addEventListener('blur',function(){
+const c=categoriza(this.value);document.getElementById('lCat').value=c});
+}
+function salvaLanc(cid){
+const desc=document.getElementById('lDesc').value.trim();const valor=num(document.getElementById('lVal').value);
+if(!desc||!valor)return;
+mes().despesas.push({id:uid(),cartao:cid,desc,valor,cat:document.getElementById('lCat').value});
+salva();fecha();render();
+}
+
+function importarContas(){
+abre('Colar lista de contas',`
+<div class="hint" style="margin:0 0 10px">Uma conta por linha, no formato <b>dia · nome · valor</b>. Contas com "cartão" no nome entram como fatura.</div>
+<textarea id="cTxt" placeholder="1 Água 120,00
+10 Internet 99,90
+15 Cartão do banco 1.200,00"></textarea>
+<div class="btns" style="padding:14px 0 0"><button class="act pri" onclick="lerContas()">Ler linhas</button></div>
+<div id="cPrev"></div>`);
+}
+function lerContas(){
+const linhas=document.getElementById('cTxt').value.split('\n').map(s=>s.trim()).filter(Boolean);
+pendentes=[];
+linhas.forEach(l=>{
+let s=l.replace(/[;\t]/g,' ').replace(/\s+/g,' ').trim();
+const mDia=s.match(/^(\d{1,2})\s+/);
+if(!mDia)return;
+const dia=Math.max(1,Math.min(31,+mDia[1]));
+s=s.slice(mDia[0].length);
+const nums=s.match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2}|\d+/g);
+if(!nums)return;
+const ult=nums[nums.length-1],valor=num(ult);
+if(!valor)return;
+const nome=s.slice(0,s.lastIndexOf(ult)).trim().replace(/[-–—|]+$/,'').trim()||'(sem nome)';
+const ehCart=/cart|nubank|fatura/i.test(nome);
+pendentes.push({id:uid(),nome,dia,valor,cat:ehCart?'Cartão':'Outros',tipo:ehCart?'cartao':'conta'});
+});
+if(!pendentes.length){document.getElementById('cPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não consegui ler. Cada linha precisa começar com o dia e terminar com o valor, tipo "1 Água 120,00".</div>`;return}
+let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} contas · ${brc(pendentes.reduce((s,p)=>s+p.valor,0))}</div><div class="prev">`;
+pendentes.forEach((p,i)=>{
+h+=`<div class="prev-row"><span class="dia">${p.dia}</span><span class="pn">${esc(p.nome)}</span>
+<select onchange="pendentes[${i}].cat=this.value">${CATS.concat('Cartão').map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<span class="pv">${br(p.valor)}</span></div>`;
+});
+h+=`</div><div class="hint">Ajuste as categorias agora se quiser. Parcelas com prazo você marca depois, abrindo cada conta.</div>
+<div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="confirmaContas()">Salvar ${pendentes.length} contas</button></div>`;
+document.getElementById('cPrev').innerHTML=h;
+}
+function confirmaContas(){
+pendentes.forEach(p=>{DB.config.contas.push({id:p.id,nome:p.nome,dia:p.dia,valor:p.valor,cat:p.cat,tipo:p.tipo,pa:null,pt:null,pcomp:null});
+mes().contas[p.id]={valor:p.valor}});
+salva();fecha();render();
+}
+
+function importar(cid){
+const c=DB.config.contas.find(x=>x.id===cid);
+abre('Importar · '+c.nome,`
+<div class="hint" style="margin:0 0 10px">Cole as linhas da fatura — do CSV do banco, do print, ou do resumo que você recebeu. Uma por linha. O app pega o último número como valor.</div>
+<textarea id="iTxt" placeholder="ANGELONI SUPERM 342,80
+POSTO IPIRANGA 289,00
+IFOOD *REST 67,90
+MAGALU PARC 3/10 120,00"></textarea>
+<div class="btns" style="padding:14px 0 0"><button class="act pri" onclick="lerImport('${cid}')">Ler linhas</button></div>
+<div id="iPrev"></div>`);
+}
+function lerImport(cid){
+const linhas=document.getElementById('iTxt').value.split('\n').map(s=>s.trim()).filter(Boolean);
+pendentes=[];
+linhas.forEach(l=>{
+let s=l.replace(/;/g,' ').replace(/\t/g,' ');
+const nums=s.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2}|-?\d+/g);
+if(!nums)return;
+const ult=nums[nums.length-1];
+const valor=num(ult);
+if(!valor)return;
+let desc=s.slice(0,s.lastIndexOf(ult)).trim().replace(/[-–—|]+$/,'').trim();
+desc=desc.replace(/^\d{2}[\/.]\d{2}([\/.]\d{2,4})?\s*/,'').trim();
+if(!desc)desc='(sem descrição)';
+const pm=desc.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+pendentes.push({id:uid(),desc,valor,cat:categoriza(desc),pa:pm?+pm[1]:null,pt:pm?+pm[2]:null});
+});
+if(!pendentes.length){document.getElementById('iPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não achei valores nessas linhas. Cada linha precisa terminar com um número, tipo "MERCADO 342,80".</div>`;return}
+const tot=pendentes.reduce((s,p)=>s+p.valor,0);
+let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} linhas · ${brc(tot)}</div><div class="prev">`;
+pendentes.forEach((p,i)=>{
+h+=`<div class="prev-row"><span class="pn">${esc(p.desc)}${p.pt?` <span class="pill p-parc">${p.pa}/${p.pt}</span>`:''}</span>
+<select onchange="pendentes[${i}].cat=this.value">${CATS.map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<span class="pv">${br(p.valor)}</span></div>`;
+});
+h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app errar aqui, ele erra no gráfico.</div>
+<div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="confirmaImport('${cid}')">Salvar ${pendentes.length} lançamentos</button></div>`;
+document.getElementById('iPrev').innerHTML=h;
+}
+function confirmaImport(cid){
+pendentes.forEach(p=>mes().despesas.push({id:p.id,cartao:cid,desc:p.desc,valor:p.valor,cat:p.cat,pa:p.pa,pt:p.pt}));
+salva();fecha();render();
+}
+function verLancamentos(cid){
+const ds=despesasCartao(cid);
+let h='<div class="prev">';
+ds.slice().sort((a,b)=>b.valor-a.valor).forEach(d=>{
+h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}</span><span class="pv">${br(d.valor)}</span>
+<span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaLanc('${d.id}','${cid}')">×</span></div>`;
+});
+h+='</div>';
+abre('Lançamentos',h);
+}
+function apagaLanc(id,cid){const m=mes();m.despesas=m.despesas.filter(d=>d.id!==id);salva();render();verLancamentos(cid)}
+
+function mostraLogin(msg){
+document.getElementById('login').classList.add('on');
+document.getElementById('lgErro').textContent=msg||'';
+}
+async function entrar(){
+const b=document.getElementById('lgBtn'),e=document.getElementById('lgErro');
+const email=document.getElementById('lgEmail').value.trim();
+const senha=document.getElementById('lgSenha').value;
+if(!email||!senha){e.textContent='Preencha e-mail e senha.';return}
+b.disabled=true;b.textContent='Entrando…';e.textContent='';
+const {error}=await sb.auth.signInWithPassword({email,password:senha});
+b.disabled=false;b.textContent='Entrar';
+if(error){e.textContent='E-mail ou senha não conferem.';return}
+document.getElementById('login').classList.remove('on');
+document.getElementById('lgSenha').value='';
+try{await carrega();render()}catch(err){e.textContent='Entrou, mas não consegui ler os dados. Confira as permissões da tabela.'}
+}
+async function sair(){
+if(!sb)return;
+if(!confirm('Sair da conta neste aparelho?'))return;
+await sb.auth.signOut();location.reload();
+}
+
+(async function(){
+if(SUPABASE_URL&&SUPABASE_KEY){
+await new Promise(r=>{const s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=r;s.onerror=r;document.head.appendChild(s)});
+if(window.supabase){
+sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const {data}=await sb.auth.getSession();
+if(!data||!data.session){render();mostraLogin();return}
+}
+}
+try{await carrega()}catch(e){sb=null;await carrega();alert('Não consegui conectar. O app abriu no modo só deste aparelho.')}
+render();
+document.addEventListener('visibilitychange',async()=>{
+if(document.visibilityState==='visible'&&sb){try{await carrega();render()}catch(e){}}
+});
+})();
+</script>
+</body>
+</html>
