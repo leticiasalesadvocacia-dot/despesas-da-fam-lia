@@ -197,8 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -276,6 +276,7 @@ m.contas=m.contas||{};m.entradas=m.entradas||{};m.despesas=m.despesas||[];
 return m;
 }
 function valorConta(c){const m=mes();return m.contas[c.id]&&m.contas[c.id].valor!=null?m.contas[c.id].valor:c.valor}
+function valorEntrada(e){const m=mes();return m.entradas[e.id]&&m.entradas[e.id].valor!=null?m.entradas[e.id].valor:e.valor}
 function difMes(a,b){const[ay,am]=a.split('-').map(Number),[by,bm]=b.split('-').map(Number);return (by-ay)*12+(bm-am)}
 function parcelaNo(c,cp){if(!c.pt)return null;return (c.pa||1)+difMes(c.pcomp||comp,cp||comp)}
 function ativa(c,cp){const n=parcelaNo(c,cp);return n===null||(n>=1&&n<=c.pt)}
@@ -392,8 +393,8 @@ return h;
 function viewCaixa(){
 const [a,m]=comp.split('-').map(Number);const ndm=new Date(a,m,0).getDate();
 const ev=[];
-(DB.config.entradas||[]).forEach(e=>{const m2=mes();const v=m2.entradas[e.id]&&m2.entradas[e.id].valor!=null?m2.entradas[e.id].valor:e.valor;
-ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:v,tipo:'in',id:e.id})});
+(DB.config.entradas||[]).forEach(e=>{
+ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:valorEntrada(e),tipo:'in',id:e.id})});
 contasOrd().forEach(c=>ev.push({dia:Math.min(c.dia,ndm),nome:c.nome,valor:-valorConta(c),tipo:'out',pago:pagoConta(c)}));
 ev.sort((x,y)=>x.dia-y.dia||(x.tipo==='in'?-1:1));
 if(!(DB.config.entradas||[]).length){
@@ -412,8 +413,15 @@ h+='</div>';
 let topo='';
 if(pior.dia)topo=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Pior momento do mês</span><b class="neg">dia ${pior.dia} · ${br(pior.v)}</b></div>
 <div class="hint">Esse é o buraco a cobrir. Se ele é negativo, o mês só fecha com limite ou reserva.</div></div></div>`;
-return topo+`<div class="eyebrow">entradas e saídas em ordem de data</div>`+h+
-`<div class="foot"><button onclick="editaEntrada()">Adicionar entrada</button></div>`;
+let lista='<div class="eyebrow">suas entradas</div><div class="card">';
+DB.config.entradas.slice().sort((x,y)=>x.dia-y.dia).forEach(e=>{
+lista+=`<div class="row"><span class="dia">${e.dia}</span>
+<span class="rnome" onclick="editaEntrada('${e.id}')">${esc(e.nome)}</span>
+<span class="rval" onclick="editaEntrada('${e.id}')">${br(valorEntrada(e))}</span></div>`;
+});
+lista+='</div>';
+return topo+`<div class="eyebrow">entradas e saídas em ordem de data</div>`+h+lista+
+`<div class="foot">Toque numa entrada pra mudar o valor deste mês. <button onclick="editaEntrada()">Adicionar entrada</button></div>`;
 }
 
 function viewGastos(){
@@ -522,9 +530,9 @@ abre(e?e.nome:'Nova entrada',`
 <label class="f">De onde vem</label><input id="eNome" value="${e?esc(e.nome):''}" placeholder="Ex: Pró-labore"/>
 <div class="duo">
 <div><label class="f">Dia que entra</label><input id="eDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${e?e.dia:''}"/></div>
-<div><label class="f">Valor</label><input id="eValor" class="n" type="text" inputmode="decimal" value="${e?br(e.valor):''}"/></div>
+<div><label class="f">Valor</label><input id="eValor" class="n" type="text" inputmode="decimal" value="${e?br(valorEntrada(e)):''}"/></div>
 </div>
-<div class="hint">Cadastre cada entrada separada, com o dia certo. É a data que faz a projeção funcionar, não o total.</div>
+<div class="hint">O valor vale para <b>${nomeMes(comp)}</b>. Meses anteriores não mudam. O dia é o que faz a projeção funcionar.</div>
 <div class="btns" style="padding:18px 0 4px">
 ${e?`<button class="act" onclick="apagaEntrada('${e.id}')">Excluir</button>`:''}
 <button class="act pri" onclick="salvaEntrada(${e?`'${e.id}'`:'null'})">Salvar</button></div>`);
@@ -533,8 +541,9 @@ function salvaEntrada(id){
 const nome=document.getElementById('eNome').value.trim();if(!nome)return;
 const dia=Math.max(1,Math.min(31,parseInt(document.getElementById('eDia').value)||1));
 const valor=num(document.getElementById('eValor').value);
-if(id){Object.assign(DB.config.entradas.find(x=>x.id===id),{nome,dia,valor})}
-else{DB.config.entradas.push({id:uid(),nome,dia,valor})}
+if(id){Object.assign(DB.config.entradas.find(x=>x.id===id),{nome,dia});
+mes().entradas[id]=Object.assign({},mes().entradas[id],{valor});}
+else{const nid=uid();DB.config.entradas.push({id:nid,nome,dia,valor});mes().entradas[nid]={valor}}
 salva();fecha();render();
 }
 function apagaEntrada(id){DB.config.entradas=DB.config.entradas.filter(x=>x.id!==id);salva();fecha();render()}
