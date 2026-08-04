@@ -197,20 +197,20 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
 const REGRAS={
 Mercado:['angeloni','bistek','koch','giassi','super','mercado','atacad','carrefour','assai','hortifruti','padaria','panific','acougue','açougue','fort atacad'],
 'Combustível':['posto','ipiranga','shell','petrobras','texaco','ale comb','br mania','combustivel','combustível'],
-Restaurante:['restaurante','ifood','rappi','burger','pizza','cafe','café','lanche','sushi','churras','bar ','padoca','doceria','sorvet'],
+Restaurante:['restaurante','ifood','ifd*','rappi','burger','pizza','cafe','café','lanche','sushi','churras','bar ','padoca','doceria','sorvet','grill','foods','gelat','bacio','pastel','esfiha'],
 'Farmácia':['farmacia','farmácia','drogaria','panvel','drogasil','raia','pague menos'],
 Casa:['claro','vivo','tim ','celesc','internet','netflix','spotify','disney','prime','energia','agua','água','gas ','condominio','condomínio'],
-Carro:['sem parar','estacionamento','oficina','pneu','ipva','licenciamento','uber','99app','99 ','lavacao','lava'],
-Compras:['renner','riachuelo','zara','magalu','americanas','shopee','shein','mercado livre','mercadolivre','amazon','centauro','decathlon','havan'],
-'Saúde':['clinica','clínica','laborat','dentist','hospital','unimed','exame','psicol','fisiot'],
+Carro:['sem parar','estacionamento',' park','oficina','pneu','ipva','licenciamento','uber','99app','99 ','lavacao','lava'],
+Compras:['renner','riachuelo','zara','inditex','shein','sheinco','magalu','americanas','shopee','mercado livre','mercadolivre','amazon','centauro','decathlon','havan'],
+'Saúde':['clinica','clínica','laborat','dentist','hospital','unimed','exame','psicol','fisiot','vacina','esthetic','estetic','odonto'],
 Lazer:['cinema','hotel','airbnb','latam','gol lin','azul lin','decolar','booking','ingresso','viagem']
 };
 
@@ -444,6 +444,17 @@ h+=`<div class="row"><span class="rnome">${esc(c.nome)} <span class="pill p-parc
 <span class="rsub">${rest>0?'faltam '+rest:'última'}</span><span class="rval">${br(valorConta(c))}</span></div>`;
 });
 h+='</div><div class="foot">Quando a última parcela cair, esse valor volta pro caixa todo mês.</div>';
+}
+const dp=m.despesas.filter(d=>d.pt&&d.pa);
+if(dp.length){
+const somaP=dp.reduce((s,d)=>s+d.valor,0);
+h+=`<div class="eyebrow">compras parceladas nas faturas</div><div class="card">`;
+dp.slice().sort((a,b)=>(a.pt-a.pa)-(b.pt-b.pa)).forEach(d=>{
+const rest=d.pt-d.pa;
+h+=`<div class="row"><span class="rnome">${esc(d.desc)}</span>
+<span class="rsub">${rest>0?'faltam '+rest:'última'}</span><span class="rval">${br(d.valor)}</span></div>`;
+});
+h+=`</div><div class="foot">${brc(somaP)} por mês já comprometidos antes de você comprar qualquer coisa.</div>`;
 }
 return h;
 }
