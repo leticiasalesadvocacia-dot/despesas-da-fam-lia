@@ -197,8 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -287,6 +287,10 @@ function contasOrd(){return DB.config.contas.filter(c=>ativa(c)).sort((a,b)=>a.d
 function totalMes(){return contasOrd().reduce((s,c)=>s+valorConta(c),0)}
 function totalPago(){return contasOrd().filter(pagoConta).reduce((s,c)=>s+valorConta(c),0)}
 function despesasCartao(id){return mes().despesas.filter(d=>d.cartao===id)}
+function atualizaFatura(cid){
+const soma=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
+mes().contas[cid]=Object.assign({},mes().contas[cid],{valor:soma});
+}
 
 function mudaMes(n){const [a,m]=comp.split('-').map(Number);const d=new Date(a,m-1+n,1);const novo=ym(d);
 if(novo<INICIO)return;comp=novo;diaSel=null;render()}
@@ -569,12 +573,15 @@ for(const [cat,ks] of Object.entries(REGRAS))for(const k of ks)if(d.includes(k))
 return 'Outros';
 }
 function lancar(cid){
+const cc=DB.config.contas.find(x=>x.id===cid)||{nome:'cartão'};
+const at=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
 abre('Novo lançamento',`
 <label class="f">Descrição</label><input id="lDesc" placeholder="Ex: Posto Ipiranga"/>
 <div class="duo">
 <div><label class="f">Valor</label><input id="lVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
 <div><label class="f">Categoria</label><select id="lCat">${CATS.map(k=>`<option>${k}</option>`).join('')}</select></div>
 </div>
+<div class="hint">A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento. Ela é sempre a soma do que está lançado no mês — dá pra corrigir na aba Mês.</div>
 <div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaLanc('${cid}')">Adicionar</button></div>`);
 document.getElementById('lDesc').addEventListener('blur',function(){
 const c=categoriza(this.value);document.getElementById('lCat').value=c});
@@ -583,6 +590,7 @@ function salvaLanc(cid){
 const desc=document.getElementById('lDesc').value.trim();const valor=num(document.getElementById('lVal').value);
 if(!desc||!valor)return;
 mes().despesas.push({id:uid(),cartao:cid,desc,valor,cat:document.getElementById('lCat').value});
+atualizaFatura(cid);
 salva();fecha();render();
 }
 
@@ -658,21 +666,24 @@ pendentes.push({id:uid(),desc,valor,cat:categoriza(desc),pa:pm?+pm[1]:null,pt:pm
 });
 if(!pendentes.length){document.getElementById('iPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não achei valores nessas linhas. Cada linha precisa terminar com um número, tipo "MERCADO 342,80".</div>`;return}
 const tot=pendentes.reduce((s,p)=>s+p.valor,0);
+const c=DB.config.contas.find(x=>x.id===cid)||{nome:'cartão'};
+const jaLanc=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
 let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} linhas · ${brc(tot)}</div><div class="prev">`;
 pendentes.forEach((p,i)=>{
 h+=`<div class="prev-row"><span class="pn">${esc(p.desc)}${p.pt?` <span class="pill p-parc">${p.pa}/${p.pt}</span>`:''}</span>
 <select onchange="pendentes[${i}].cat=this.value">${CATS.map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
 <span class="pv">${br(p.valor)}</span></div>`;
 });
-h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app errar aqui, ele erra no gráfico.</div>
+h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app errar aqui, ele erra no gráfico.<br/>Ao salvar, a fatura de <b>${esc(c.nome)}</b> neste mês passa a <b>${brc(jaLanc+tot)}</b>. Você pode alterar depois na aba Mês.</div>
 <div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="confirmaImport('${cid}')">Salvar ${pendentes.length} lançamentos</button></div>`;
 document.getElementById('iPrev').innerHTML=h;
 }
 function confirmaImport(cid){
 pendentes.forEach(p=>mes().despesas.push({id:p.id,cartao:cid,desc:p.desc,valor:p.valor,cat:p.cat,pa:p.pa,pt:p.pt}));
+const novo=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
+mes().contas[cid]=Object.assign({},mes().contas[cid],{valor:novo});
 salva();fecha();render();
-}
-function verLancamentos(cid){
+}function verLancamentos(cid){
 const ds=despesasCartao(cid);
 let h='<div class="prev">';
 ds.slice().sort((a,b)=>b.valor-a.valor).forEach(d=>{
@@ -682,7 +693,7 @@ h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}</span><span class="pv"
 h+='</div>';
 abre('Lançamentos',h);
 }
-function apagaLanc(id,cid){const m=mes();m.despesas=m.despesas.filter(d=>d.id!==id);salva();render();verLancamentos(cid)}
+function apagaLanc(id,cid){const m=mes();m.despesas=m.despesas.filter(d=>d.id!==id);atualizaFatura(cid);salva();render();verLancamentos(cid)}
 
 function mostraLogin(msg){
 document.getElementById('login').classList.add('on');
