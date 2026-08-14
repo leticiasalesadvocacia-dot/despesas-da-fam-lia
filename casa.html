@@ -197,8 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 <script>
 // Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
 // o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+const SUPABASE_URL='';
+const SUPABASE_KEY='';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -216,6 +216,50 @@ Lazer:['cinema','hotel','airbnb','latam','gol lin','azul lin','decolar','booking
 
 let DB={config:{contas:[],entradas:[]},meses:{}};
 let hoje=new Date(), comp=ym(hoje), tab='mes', diaSel=null, sb=null, pendentes=[];
+const sujos=new Set();
+
+function mesDe(cp){
+if(!DB.meses[cp])DB.meses[cp]={contas:{},entradas:{},despesas:[]};
+const m=DB.meses[cp];
+m.contas=m.contas||{};m.entradas=m.entradas||{};m.despesas=m.despesas||[];
+return m;
+}
+function somaMes(cp){return new Date(+cp.split('-')[0],+cp.split('-')[1],1)}
+function proxComp(cp,n){const d=new Date(+cp.split('-')[0],+cp.split('-')[1]-1+n,1);return ym(d)}
+
+function propaga(cid,d){
+if(!d.pt||!d.pa||d.pa>=d.pt)return 0;
+const serie=d.serie||uid();
+d.serie=serie;
+let n=0;
+for(let i=1;d.pa+i<=d.pt;i++){
+const cp=proxComp(comp,i);
+const m=mesDe(cp);
+if(m.despesas.some(x=>x.serie===serie))continue;
+m.despesas.push({id:uid(),serie,cartao:cid,desc:d.desc,valor:d.valor,cat:d.cat,pa:d.pa+i,pt:d.pt});
+const soma=m.despesas.filter(x=>x.cartao===cid).reduce((s,x)=>s+x.valor,0);
+m.contas[cid]=Object.assign({},m.contas[cid],{valor:soma});
+sujos.add(cp);n++;
+}
+return n;
+}
+function apagaSerie(serie){
+if(!serie)return;
+Object.keys(DB.meses).forEach(k=>{
+if(k<=comp)return;
+const m=DB.meses[k];
+if(!m.despesas)return;
+const antes=m.despesas.length;
+m.despesas=m.despesas.filter(x=>x.serie!==serie);
+if(m.despesas.length!==antes){
+Object.keys(m.contas||{}).forEach(cid=>{
+const soma=m.despesas.filter(x=>x.cartao===cid).reduce((s,x)=>s+x.valor,0);
+if(m.contas[cid]&&m.contas[cid].valor!=null)m.contas[cid].valor=soma;
+});
+sujos.add(k);
+}
+});
+}
 
 function ym(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 function nomeMes(c){const [a,m]=c.split('-');return ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][+m-1]+' '+a}
@@ -260,12 +304,14 @@ salva();
 }
 function salva(){
 Object.keys(DB.meses).forEach(k=>{const m=DB.meses[k];
-if(k!==comp&&!Object.keys(m.contas||{}).length&&!Object.keys(m.entradas||{}).length&&!(m.despesas||[]).length)delete DB.meses[k]});
+if(k!==comp&&!sujos.has(k)&&!Object.keys(m.contas||{}).length&&!Object.keys(m.entradas||{}).length&&!(m.despesas||[]).length)delete DB.meses[k]});
 if(sb){
 const linhas=[{chave:'config',dados:DB.config},{chave:'versao',dados:{n:DB.versao}}];
-if(DB.meses[comp])linhas.push({chave:comp,dados:DB.meses[comp]});
+const alvos=new Set([comp,...sujos]);
+alvos.forEach(k=>{if(DB.meses[k])linhas.push({chave:k,dados:DB.meses[k]})});
 sb.from('casa_dados').upsert(linhas).then(({error})=>{if(error)console.warn(error)});
 }
+sujos.clear();
 store.set('casa_db',DB);
 }
 
@@ -439,31 +485,25 @@ const naoClass=contasOrd().filter(c=>c.tipo==='cartao').reduce((s,c)=>s+Math.max
 const fixas=contasOrd().filter(c=>c.tipo!=='cartao'&&!c.pt);
 const sFix=fixas.reduce((s,c)=>s+valorConta(c),0);
 const sParcC=contasOrd().filter(c=>c.tipo!=='cartao'&&c.pt).reduce((s,c)=>s+valorConta(c),0);
-let sParcD=0;const estouram=[];
-contasOrd().filter(c=>c.tipo==='cartao').forEach(c=>{
-const fat=valorConta(c);
-const ds=despesasCartao(c.id).filter(d=>d.pt&&d.pa);
-let v=ds.reduce((s,d)=>s+d.valor,0);
-if(!ds.length&&c.pt)v=fat;
-if(v>fat+0.05)estouram.push(c.nome);
-sParcD+=Math.min(v,fat);
-});
-const comp=sFix+sParcC+sParcD;
+let sCart=0;
+contasOrd().filter(c=>c.tipo==='cartao').forEach(c=>{sCart+=valorConta(c)});
+const estouram=[];
+const comp=sFix+sParcC+sCart;
 const renda=(DB.config.entradas||[]).reduce((s,e)=>s+valorEntrada(e),0);
 const pct=renda>0?Math.round(comp/renda*100):null;
 const sobra=renda-comp;
 let h='';
 if(comp>0){
-h+=`<div class="eyebrow">já comprometido antes de qualquer decisão</div><div class="card">
-<div class="row"><span class="rnome">Fixas sem prazo pra acabar</span><span class="rval">${br(sFix)}</span></div>
-<div class="row"><span class="rnome">Parcelas com prazo</span><span class="rval">${br(sParcC+sParcD)}</span></div>
+h+=`<div class="eyebrow">já comprometido neste mês</div><div class="card">
+<div class="row"><span class="rnome">Contas fixas do mês</span><span class="rval">${br(sFix+sParcC)}</span></div>
+<div class="row"><span class="rnome">Já lançado nos cartões</span><span class="rval">${br(sCart)}</span></div>
 <div class="bar-wrap"><div class="bar-top"><span>Total comprometido</span><b class="${pct!==null&&pct>100?'neg':''}">${brc(comp)}${pct!==null?` · ${pct}% da renda`:''}</b></div>
 <div class="bar"><i style="width:${pct!==null?Math.min(100,pct):0}%;background:${pct!==null&&pct>100?'var(--alert)':'var(--accent)'}"></i></div>
 <div class="hint">${pct===null
-?'Cadastre as entradas na aba Caixa para ver quanto isso representa do que entra. Sem elas o número não tem contra o que ser comparado.'
+?'Cadastre as entradas na aba Caixa para ver quanto isso representa do que entra.'
 :(sobra>=0
-?`Sobram ${brc(sobra)} da renda para mercado, restaurante, combustível e tudo mais que se decide no mês.`
-:`O comprometido já passa a renda em ${brc(-sobra)} antes de qualquer gasto do mês.`)}${estouram.length?` <b>Atenção:</b> em ${estouram.join(', ')} as parcelas lançadas passam do valor cadastrado da fatura.`:''}</div></div></div>`;
+?`Sobram ${brc(sobra)} da renda para o que ainda não foi gasto neste mês.`
+:`O que já está lançado passa a renda em ${brc(-sobra)}.`)}</div></div></div>`;
 }
 if(naoClass>0.05)h+=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Ainda sem classificar</span><b>${brc(naoClass)}</b></div>
 <div class="hint">Faturas de cartão lançadas só pelo total. Enquanto esse número for alto, o gráfico abaixo conta meia verdade.</div></div></div>`;
@@ -581,7 +621,11 @@ abre('Novo lançamento',`
 <div><label class="f">Valor</label><input id="lVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
 <div><label class="f">Categoria</label><select id="lCat">${CATS.map(k=>`<option>${k}</option>`).join('')}</select></div>
 </div>
-<div class="hint">A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento. Ela é sempre a soma do que está lançado no mês — dá pra corrigir na aba Mês.</div>
+<div class="duo">
+<div><label class="f">Parcela nº</label><input id="lPa" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
+<div><label class="f">De quantas</label><input id="lPt" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
+</div>
+<div class="hint">Compra parcelada: preencha "1" e o total de parcelas, e o valor <b>de uma parcela</b>. As seguintes entram sozinhas nos próximos meses.<br/>A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento.</div>
 <div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaLanc('${cid}')">Adicionar</button></div>`);
 document.getElementById('lDesc').addEventListener('blur',function(){
 const c=categoriza(this.value);document.getElementById('lCat').value=c});
@@ -589,9 +633,14 @@ const c=categoriza(this.value);document.getElementById('lCat').value=c});
 function salvaLanc(cid){
 const desc=document.getElementById('lDesc').value.trim();const valor=num(document.getElementById('lVal').value);
 if(!desc||!valor)return;
-mes().despesas.push({id:uid(),cartao:cid,desc,valor,cat:document.getElementById('lCat').value});
+const pa=parseInt(document.getElementById('lPa').value)||null;
+const pt=parseInt(document.getElementById('lPt').value)||null;
+const d={id:uid(),cartao:cid,desc,valor,cat:document.getElementById('lCat').value,pa:(pa&&pt)?pa:null,pt:(pa&&pt)?pt:null};
+mes().despesas.push(d);
+const futuras=propaga(cid,d);
 atualizaFatura(cid);
 salva();fecha();render();
+if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+(futuras>1?'s':'')+' lançada'+(futuras>1?'s':'')+' nos meses seguintes.'),100);
 }
 
 function importarContas(){
@@ -679,10 +728,15 @@ h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app e
 document.getElementById('iPrev').innerHTML=h;
 }
 function confirmaImport(cid){
-pendentes.forEach(p=>mes().despesas.push({id:p.id,cartao:cid,desc:p.desc,valor:p.valor,cat:p.cat,pa:p.pa,pt:p.pt}));
-const novo=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
-mes().contas[cid]=Object.assign({},mes().contas[cid],{valor:novo});
+let futuras=0;
+pendentes.forEach(p=>{
+const d={id:p.id,cartao:cid,desc:p.desc,valor:p.valor,cat:p.cat,pa:p.pa,pt:p.pt};
+mes().despesas.push(d);
+futuras+=propaga(cid,d);
+});
+atualizaFatura(cid);
 salva();fecha();render();
+if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+(futuras>1?'s':'')+' lançada'+(futuras>1?'s':'')+' nos meses seguintes.'),100);
 }function verLancamentos(cid){
 const ds=despesasCartao(cid);
 let h='<div class="prev">';
@@ -693,7 +747,9 @@ h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}</span><span class="pv"
 h+='</div>';
 abre('Lançamentos',h);
 }
-function apagaLanc(id,cid){const m=mes();m.despesas=m.despesas.filter(d=>d.id!==id);atualizaFatura(cid);salva();render();verLancamentos(cid)}
+function apagaLanc(id,cid){const m=mes();const alvo=m.despesas.find(d=>d.id===id);
+if(alvo&&alvo.serie)apagaSerie(alvo.serie);
+m.despesas=m.despesas.filter(d=>d.id!==id);atualizaFatura(cid);salva();render();verLancamentos(cid)}
 
 function mostraLogin(msg){
 document.getElementById('login').classList.add('on');
