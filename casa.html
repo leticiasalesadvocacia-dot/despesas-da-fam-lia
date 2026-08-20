@@ -201,7 +201,9 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 const SUPABASE_URL=(window.CASA_CONFIG&&window.CASA_CONFIG.url)||'';
 const SUPABASE_KEY=(window.CASA_CONFIG&&window.CASA_CONFIG.key)||'';
 
-const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
+const CATS_PADRAO=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
+function cats(){const c=(DB.config&&DB.config.cats&&DB.config.cats.length)?DB.config.cats:CATS_PADRAO;
+return c.includes('Outros')?c:c.concat('Outros');}
 const INICIO='2026-08';
 const REGRAS={
 Mercado:['angeloni','bistek','koch','giassi','super','mercado','atacad','carrefour','assai','hortifruti','padaria','panific','acougue','açougue','fort atacad'],
@@ -536,6 +538,7 @@ h+=`<div class="row"><span class="rnome">${esc(d.desc)}</span>
 });
 h+=`</div><div class="foot">Essas somem sozinhas quando a última parcela cair.</div>`;
 }
+h+=`<div class="foot"><button onclick="gerenciaCats()">Gerenciar categorias</button></div>`;
 return h;
 }
 
@@ -553,7 +556,7 @@ abre(c?c.nome:'Nova conta',`
 <div><label class="f">Dia</label><input id="fDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${c?c.dia:''}"/></div>
 <div><label class="f">Valor deste mês</label><input id="fValor" class="n" type="text" inputmode="decimal" value="${c?br(valorConta(c)):''}"/></div>
 </div>
-<label class="f">Categoria</label><select id="fCat">${CATS.concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<label class="f">Categoria</label><select id="fCat">${cats().concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${k}</option>`).join('')}</select>
 <label class="f">Tipo</label><select id="fTipo">
 <option value="conta" ${c&&c.tipo==='conta'?'selected':''}>Conta comum</option>
 <option value="cartao" ${c&&c.tipo==='cartao'?'selected':''}>Fatura de cartão</option></select>
@@ -620,7 +623,7 @@ abre('Novo lançamento',`
 <label class="f">Descrição</label><input id="lDesc" placeholder="Ex: Posto Ipiranga"/>
 <div class="duo">
 <div><label class="f">Valor</label><input id="lVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
-<div><label class="f">Categoria</label><select id="lCat">${CATS.map(k=>`<option>${k}</option>`).join('')}</select></div>
+<div><label class="f">Categoria</label><select id="lCat">${cats().map(k=>`<option>${k}</option>`).join('')}</select></div>
 </div>
 <div class="duo">
 <div><label class="f">Parcela nº</label><input id="lPa" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
@@ -707,7 +710,7 @@ if(!pendentes.length){document.getElementById('cPrev').innerHTML=`<div class="hi
 let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} contas · ${brc(pendentes.reduce((s,p)=>s+p.valor,0))}</div><div class="prev">`;
 pendentes.forEach((p,i)=>{
 h+=`<div class="prev-row"><span class="dia">${p.dia}</span><span class="pn">${esc(p.nome)}</span>
-<select onchange="pendentes[${i}].cat=this.value">${CATS.concat('Cartão').map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<select onchange="pendentes[${i}].cat=this.value">${cats().concat('Cartão').map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
 <span class="pv">${br(p.valor)}</span></div>`;
 });
 h+=`</div><div class="hint">Ajuste as categorias agora se quiser. Parcelas com prazo você marca depois, abrindo cada conta.</div>
@@ -754,7 +757,7 @@ const jaLanc=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
 let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} linhas · ${brc(tot)}</div><div class="prev">`;
 pendentes.forEach((p,i)=>{
 h+=`<div class="prev-row"><span class="pn">${esc(p.desc)}${p.pt?` <span class="pill p-parc">${p.pa}/${p.pt}</span>`:''}</span>
-<select onchange="pendentes[${i}].cat=this.value">${CATS.map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<select onchange="pendentes[${i}].cat=this.value">${cats().map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
 <span class="pv">${br(p.valor)}</span></div>`;
 });
 h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app errar aqui, ele erra no gráfico.<br/>Ao salvar, a fatura de <b>${esc(c.nome)}</b> neste mês passa a <b>${brc(jaLanc+tot)}</b>. Você pode alterar depois na aba Mês.</div>
@@ -775,12 +778,59 @@ if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+
 const ds=despesasCartao(cid);
 let h='<div class="prev">';
 ds.slice().sort((a,b)=>(b.pt?1:0)-(a.pt?1:0)||b.valor-a.valor).forEach(d=>{
-h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}${d.pt?` <span class="pill p-parc">${d.pa}/${d.pt}</span>`:''}</span><span class="pv">${br(d.valor)}</span>
+h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}${d.pt?` <span class="pill p-parc">${d.pa}/${d.pt}</span>`:''}</span>
+<select onchange="mudaCat('${d.id}','${cid}',this.value)">${cats().map(k=>`<option ${d.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<span class="pv">${br(d.valor)}</span>
 <span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaLanc('${d.id}','${cid}')">×</span></div>`;
 });
 h+='</div>';
 abre('Lançamentos',h);
 }
+function mudaCat(id,cid,cat){
+const m=mes();const d=m.despesas.find(x=>x.id===id);
+if(!d)return;
+d.cat=cat;
+if(d.serie){
+Object.keys(DB.meses).forEach(k=>{if(k<=comp)return;
+const mm=DB.meses[k];if(!mm.despesas)return;
+mm.despesas.forEach(x=>{if(x.serie===d.serie){x.cat=cat;sujos.add(k)}});
+});
+}
+salva();render();
+}
+
+function gerenciaCats(){
+const lista=cats();
+let h='<div class="prev">';
+lista.forEach(k=>{
+h+=`<div class="prev-row"><span class="pn">${esc(k)}</span>${k==='Outros'?'<span class="rsub">fixa</span>':`<span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaCat('${esc(k)}')">×</span>`}</div>`;
+});
+h+='</div>';
+h+=`<label class="f">Nova categoria</label><input id="ncNome" placeholder="Ex: Pet, Escola, José"/>
+<div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="addCat()">Adicionar</button></div>
+<div class="hint">Ao excluir uma categoria, os lançamentos que estavam nela passam para Outros.</div>`;
+abre('Categorias',h);
+}
+function addCat(){
+const n=document.getElementById('ncNome').value.trim();
+if(!n)return;
+const atual=cats();
+if(atual.some(k=>k.toLowerCase()===n.toLowerCase()))return;
+DB.config.cats=atual.filter(k=>k!=='Outros').concat(n,'Outros');
+salva();gerenciaCats();render();
+}
+function apagaCat(nome){
+DB.config.cats=cats().filter(k=>k!==nome);
+Object.keys(DB.meses).forEach(k=>{
+const m=DB.meses[k];if(!m.despesas)return;
+let mudou=false;
+m.despesas.forEach(d=>{if(d.cat===nome){d.cat='Outros';mudou=true}});
+if(mudou)sujos.add(k);
+});
+DB.config.contas.forEach(c=>{if(c.cat===nome)c.cat='Outros'});
+salva();gerenciaCats();render();
+}
+
 function apagaLanc(id,cid){const m=mes();const alvo=m.despesas.find(d=>d.id===id);
 if(alvo&&alvo.serie)apagaSerie(alvo.serie);
 m.despesas=m.despesas.filter(d=>d.id!==id);atualizaFatura(cid);salva();render();verLancamentos(cid)}
