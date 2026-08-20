@@ -774,8 +774,8 @@ if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+
 }function verLancamentos(cid){
 const ds=despesasCartao(cid);
 let h='<div class="prev">';
-ds.slice().sort((a,b)=>b.valor-a.valor).forEach(d=>{
-h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}</span><span class="pv">${br(d.valor)}</span>
+ds.slice().sort((a,b)=>(b.pt?1:0)-(a.pt?1:0)||b.valor-a.valor).forEach(d=>{
+h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}${d.pt?` <span class="pill p-parc">${d.pa}/${d.pt}</span>`:''}</span><span class="pv">${br(d.valor)}</span>
 <span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaLanc('${d.id}','${cid}')">×</span></div>`;
 });
 h+='</div>';
