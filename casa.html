@@ -194,11 +194,12 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
   <div class="sheet-b" id="sheetB"></div>
 </div>
 
+<script src="config.js"></script>
 <script>
-// Cole aqui os dados do seu projeto Supabase. Deixe em branco para usar
-// o app só neste aparelho, sem sincronizar.
-const SUPABASE_URL='https://mtenlzbtkwmqgnmupqqa.supabase.co';
-const SUPABASE_KEY='sb_publishable_MRGHVAGhee9lGS0LBK2lWA_oS6Cmy73';
+// As chaves ficam no arquivo config.js, ao lado deste.
+// NÃO edite estas duas linhas — elas se viram sozinhas.
+const SUPABASE_URL=(window.CASA_CONFIG&&window.CASA_CONFIG.url)||'';
+const SUPABASE_KEY=(window.CASA_CONFIG&&window.CASA_CONFIG.key)||'';
 
 const CATS=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 const INICIO='2026-08';
@@ -236,7 +237,7 @@ for(let i=1;d.pa+i<=d.pt;i++){
 const cp=proxComp(comp,i);
 const m=mesDe(cp);
 if(m.despesas.some(x=>x.serie===serie))continue;
-m.despesas.push({id:uid(),serie,cartao:cid,desc:d.desc,valor:d.valor,cat:d.cat,pa:d.pa+i,pt:d.pt});
+m.despesas.push({id:uid(),serie,cartao:cid,desc:d.desc,valor:(d.vals&&d.vals[d.pa+i-1]!=null)?d.vals[d.pa+i-1]:d.valor,cat:d.cat,pa:d.pa+i,pt:d.pt,vals:d.vals||null});
 const soma=m.despesas.filter(x=>x.cartao===cid).reduce((s,x)=>s+x.valor,0);
 m.contas[cid]=Object.assign({},m.contas[cid],{valor:soma});
 sujos.add(cp);n++;
@@ -625,17 +626,50 @@ abre('Novo lançamento',`
 <div><label class="f">Parcela nº</label><input id="lPa" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
 <div><label class="f">De quantas</label><input id="lPt" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
 </div>
-<div class="hint">Compra parcelada: preencha "1" e o total de parcelas, e o valor <b>de uma parcela</b>. As seguintes entram sozinhas nos próximos meses.<br/>A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento.</div>
+<label class="f">O valor acima é</label>
+<select id="lModo">
+<option value="parcela">o valor de cada parcela (repete igual)</option>
+<option value="total">o total da compra (dividir pelas parcelas)</option>
+</select>
+<div class="hint" id="lPrev"></div>
+<div class="hint">A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento.</div>
 <div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaLanc('${cid}')">Adicionar</button></div>`);
 document.getElementById('lDesc').addEventListener('blur',function(){
 const c=categoriza(this.value);document.getElementById('lCat').value=c});
+['lVal','lPa','lPt','lModo'].forEach(i=>{const el=document.getElementById(i);
+el.addEventListener('input',previewLanc);el.addEventListener('change',previewLanc)});
+previewLanc();
+}
+function parcelasDe(valor,pt,modo){
+if(!pt||pt<2)return [valor];
+if(modo!=='total')return Array(pt).fill(valor);
+const base=Math.floor(valor/pt*100)/100;
+const arr=Array(pt).fill(base);
+arr[0]=Math.round((valor-base*(pt-1))*100)/100;
+return arr;
+}
+function previewLanc(){
+const el=document.getElementById('lPrev');if(!el)return;
+const valor=num(document.getElementById('lVal').value);
+const pt=parseInt(document.getElementById('lPt').value)||null;
+const pa=parseInt(document.getElementById('lPa').value)||null;
+const modo=document.getElementById('lModo').value;
+if(!valor||!pt||pt<2||!pa){el.innerHTML='Deixe as parcelas em branco para uma compra à vista.';return}
+const arr=parcelasDe(valor,pt,modo);
+const iguais=arr.every(v=>Math.abs(v-arr[0])<0.005);
+el.innerHTML=modo==='total'
+?`${pt}× de <b>${brc(arr[arr.length-1])}</b>${iguais?'':` (a primeira: ${brc(arr[0])})`} — total ${brc(valor)}.`
+:`${pt}× de <b>${brc(valor)}</b> — total ${brc(valor*pt)}.`;
 }
 function salvaLanc(cid){
 const desc=document.getElementById('lDesc').value.trim();const valor=num(document.getElementById('lVal').value);
 if(!desc||!valor)return;
 const pa=parseInt(document.getElementById('lPa').value)||null;
 const pt=parseInt(document.getElementById('lPt').value)||null;
-const d={id:uid(),cartao:cid,desc,valor,cat:document.getElementById('lCat').value,pa:(pa&&pt)?pa:null,pt:(pa&&pt)?pt:null};
+const modo=document.getElementById('lModo').value;
+const parcelado=!!(pa&&pt&&pt>1);
+const arr=parcelado?parcelasDe(valor,pt,modo):[valor];
+const d={id:uid(),cartao:cid,desc,valor:parcelado?arr[pa-1]:valor,cat:document.getElementById('lCat').value,pa:parcelado?pa:null,pt:parcelado?pt:null,vals:parcelado?arr:null};
 mes().despesas.push(d);
 const futuras=propaga(cid,d);
 atualizaFatura(cid);
