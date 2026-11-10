@@ -756,6 +756,7 @@ const ult=cidPre||store.get('casa_ult');
 const sel=(ult==='avulso'||(ult&&cartao(ult)))?ult:(carts[0]?carts[0].id:'avulso');
 nTipo='vista';nCatManual=false;
 abre('Nova compra',`
+<div class="seg" style="margin-bottom:14px"><button class="on">Compra</button><button onclick="editaConta()">Conta fixa</button></div>
 <label class="f">O que foi</label><input id="nDesc" placeholder="Ex: Angeloni" autocomplete="off"/>
 <div class="duo">
 <div><label class="f">Valor</label><input id="nVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
@@ -776,7 +777,8 @@ ${carts.map(c=>`<option value="${c.id}" ${sel===c.id?'selected':''}>${esc(c.nome
 </div></div>
 <div class="hint" id="nPrev" style="margin-top:12px"></div>
 <div class="btns" style="padding:16px 0 4px"><button class="act pri" onclick="salvaCompra()">Lançar</button></div>
-<div class="foot"><button onclick="abrePrint($('nForma').value)">Ler print da fatura</button> · <button onclick="colarLista($('nForma').value)">Colar lista</button></div>`);
+<div class="foot"><button onclick="abrePrint($('nForma').value)">Ler print da fatura</button> · <button onclick="colarLista($('nForma').value)">Colar lista</button>
+<br/><button onclick="editaConta()">É uma conta fixa (boleto, mensalidade, aluguel)? Cadastrar conta</button></div>`);
 $('nDesc').addEventListener('input',()=>{if(!nCatManual)$('nCat').value=categoriza($('nDesc').value)});
 $('nCat').addEventListener('change',()=>{nCatManual=true});
 ['nVal','nData','nForma','nPt','nModo'].forEach(i=>{const el=$(i);el.addEventListener('input',prevCompra);el.addEventListener('change',prevCompra)});
