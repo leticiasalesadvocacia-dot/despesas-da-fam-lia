@@ -78,10 +78,34 @@ display:flex;align-items:center;justify-content:center;font-size:12px;color:tran
 .p-parc{background:var(--accent-bg);color:var(--accent)}
 .p-alert{background:var(--alert-bg);color:var(--alert)}
 
-button.act{font-family:inherit;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--r);
+.act{font-family:inherit;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--r);
 border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
-button.act:active{background:var(--ground)}
-button.act.pri{background:var(--ink);color:#F0F3EF;border-color:var(--ink)}
+.act:active{background:var(--ground)}
+.act.pri{background:var(--ink);color:#F0F3EF;border-color:var(--ink)}
+.act:disabled{opacity:.45}
+label.act{display:block;text-align:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg button{flex:1;background:var(--paper);border:none;border-right:1px solid var(--line);padding:10px 4px;
+font-family:inherit;font-size:13px;font-weight:500;color:var(--ink-soft);cursor:pointer}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--ink);color:#F0F3EF}
+.cinfo{font-size:12px;color:var(--ink-faint);padding:8px 14px 2px}
+.cinfo a{color:var(--warn);text-decoration:underline;cursor:pointer}
+.lr{padding:10px;border-bottom:1px solid var(--line-soft)}
+.lr:last-child{border-bottom:none}
+.lr.off{opacity:.45}
+.lr1{display:flex;gap:6px;align-items:center}
+.lr2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;padding-left:26px}
+.lr input,.lr select{font-size:14px;padding:6px 8px;border-radius:7px;min-width:0;width:100%}
+.lr1 input{flex:1}
+.lr1 input.v{flex:none;width:96px;text-align:right}
+.lrw{font-size:11px;color:var(--warn);padding:5px 0 0 26px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);
+background:var(--ink);color:#F0F3EF;font-size:13px;padding:9px 16px;border-radius:20px;z-index:90;opacity:0;
+pointer-events:none;transition:opacity .2s;max-width:88vw;text-align:center}
+.toast.on{opacity:1}
+details summary{list-style:none}
+details summary::-webkit-details-marker{display:none}
 .btns{display:flex;gap:8px;padding:12px 14px}
 .btns button{flex:1}
 
@@ -173,7 +197,8 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 </nav>
 
 <main id="main"></main>
-<button class="fab" id="fab" onclick="fabAcao()">+</button>
+<button class="fab" id="fab" onclick="fabAcao()" aria-label="Nova compra">+</button>
+<div class="toast" id="toast"></div>
 
 <div class="login" id="login">
   <div class="box">
@@ -208,11 +233,11 @@ const INICIO='2026-08';
 const REGRAS={
 Mercado:['angeloni','bistek','koch','giassi','super','mercado','atacad','carrefour','assai','hortifruti','padaria','panific','acougue','açougue','fort atacad'],
 'Combustível':['posto','ipiranga','shell','petrobras','texaco','ale comb','br mania','combustivel','combustível'],
-Restaurante:['restaurante','ifood','ifd*','rappi','burger','pizza','cafe','café','lanche','sushi','churras','bar ','padoca','doceria','sorvet','grill','foods','gelat','bacio','pastel','esfiha'],
+Restaurante:['restaurante','ifood','ifd*','rappi','burger','pizza','cafe','café','lanche','sushi','churras','bar ','padoca','doceria','sorvet','grill','foods','gelat','bacio','pastel','esfiha','choperia','cantina'],
 'Farmácia':['farmacia','farmácia','drogaria','panvel','drogasil','raia','pague menos'],
 Casa:['claro','vivo','tim ','celesc','internet','netflix','spotify','disney','prime','energia','agua','água','gas ','condominio','condomínio'],
-Carro:['sem parar','estacionamento',' park','oficina','pneu','ipva','licenciamento','uber','99app','99 ','lavacao','lava'],
-Compras:['renner','riachuelo','zara','inditex','shein','sheinco','magalu','americanas','shopee','mercado livre','mercadolivre','amazon','centauro','decathlon','havan'],
+Carro:['sem parar','estacionamento',' park','allpark','oficina','pneu','ipva','licenciamento','uber','99app','99 ','lavacao','lava'],
+Compras:['renner','riachuelo','zara','inditex','shein','sheinco','magalu','americanas','shopee','mercado livre','mercadolivre','amazon','centauro','decathlon','havan','livraria'],
 'Saúde':['clinica','clínica','laborat','dentist','hospital','unimed','exame','psicol','fisiot','vacina','esthetic','estetic','odonto'],
 Lazer:['cinema','hotel','airbnb','latam','gol lin','azul lin','decolar','booking','ingresso','viagem']
 };
@@ -220,6 +245,7 @@ Lazer:['cinema','hotel','airbnb','latam','gol lin','azul lin','decolar','booking
 let DB={config:{contas:[],entradas:[]},meses:{}};
 let hoje=new Date(), comp=ym(hoje), tab='mes', diaSel=null, sb=null, pendentes=[];
 const sujos=new Set();
+const $=id=>document.getElementById(id);
 
 function mesDe(cp){
 if(!DB.meses[cp])DB.meses[cp]={contas:{},entradas:{},despesas:[]};
@@ -227,49 +253,97 @@ const m=DB.meses[cp];
 m.contas=m.contas||{};m.entradas=m.entradas||{};m.despesas=m.despesas||[];
 return m;
 }
-function somaMes(cp){return new Date(+cp.split('-')[0],+cp.split('-')[1],1)}
 function proxComp(cp,n){const d=new Date(+cp.split('-')[0],+cp.split('-')[1]-1+n,1);return ym(d)}
-
-function propaga(cid,d){
-if(!d.pt||!d.pa||d.pa>=d.pt)return 0;
-const serie=d.serie||uid();
-d.serie=serie;
-let n=0;
-for(let i=1;d.pa+i<=d.pt;i++){
-const cp=proxComp(comp,i);
-const m=mesDe(cp);
-if(m.despesas.some(x=>x.serie===serie))continue;
-m.despesas.push({id:uid(),serie,cartao:cid,desc:d.desc,valor:(d.vals&&d.vals[d.pa+i-1]!=null)?d.vals[d.pa+i-1]:d.valor,cat:d.cat,pa:d.pa+i,pt:d.pt,vals:d.vals||null});
-const soma=m.despesas.filter(x=>x.cartao===cid).reduce((s,x)=>s+x.valor,0);
-m.contas[cid]=Object.assign({},m.contas[cid],{valor:soma});
-sujos.add(cp);n++;
-}
-return n;
-}
-function apagaSerie(serie){
-if(!serie)return;
-Object.keys(DB.meses).forEach(k=>{
-if(k<=comp)return;
-const m=DB.meses[k];
-if(!m.despesas)return;
-const antes=m.despesas.length;
-m.despesas=m.despesas.filter(x=>x.serie!==serie);
-if(m.despesas.length!==antes){
-Object.keys(m.contas||{}).forEach(cid=>{
-const soma=m.despesas.filter(x=>x.cartao===cid).reduce((s,x)=>s+x.valor,0);
-if(m.contas[cid]&&m.contas[cid].valor!=null)m.contas[cid].valor=soma;
-});
-sujos.add(k);
-}
-});
-}
 
 function ym(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 function nomeMes(c){const [a,m]=c.split('-');return ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][+m-1]+' '+a}
+function mesCurto(c){const [a,m]=c.split('-');return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m-1]+'/'+a.slice(2)}
 function br(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function brc(v){return 'R$ '+br(v)}
 function uid(){return Math.random().toString(36).slice(2,9)}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function hojeISO(){return iso(new Date())}
+function r2(v){return Math.round(v*100)/100}
+
+/* ---------- cartões e faturas ---------- */
+function cartoes(){return DB.config.contas.filter(c=>c.tipo==='cartao')}
+function cartao(id){return DB.config.contas.find(c=>c.id===id&&c.tipo==='cartao')}
+// Mês (aaaa-mm) do VENCIMENTO da fatura em que uma compra feita em "data" (aaaa-mm-dd) entra.
+function faturaDe(c,data){
+if(!c||!c.fech||!data)return null;
+const [y,m,d]=data.split('-').map(Number);
+const nd=new Date(y,m,0).getDate();
+const f=Math.min(c.fech,nd);
+const fechaNoMes=d<f||(d===f&&c.fechInclui);
+const mesFecha=fechaNoMes?ym(new Date(y,m-1,1)):ym(new Date(y,m,1));
+return proxComp(mesFecha,c.dia<=c.fech?1:0);
+}
+function faturaAberta(c){return faturaDe(c,hojeISO())}
+function vencEm(c,cp){const[a,m]=cp.split('-').map(Number);const nd=new Date(a,m,0).getDate();
+return String(Math.min(c.dia,nd)).padStart(2,'0')+'/'+String(m).padStart(2,'0')}
+function atualizaFaturaEm(cp,cid){
+sujos.add(cp);
+if(!cid)return;
+const m=mesDe(cp);
+const soma=m.despesas.filter(d=>d.cartao===cid).reduce((s,d)=>s+d.valor,0);
+m.contas[cid]=Object.assign({},m.contas[cid],{valor:r2(soma)});
+}
+function atualizaFatura(cid){atualizaFaturaEm(comp,cid)}
+function acha(id){for(const k of Object.keys(DB.meses)){const m=DB.meses[k];const d=(m.despesas||[]).find(x=>x.id===id);if(d)return{cp:k,m,d}}return null}
+
+// Lança uma compra (à vista ou parcelada) a partir da fatura fat0.
+// pa0 = número da primeira parcela lançada; pt = total de parcelas (null = à vista).
+function insereSerie(cid,fat0,base,pa0,pt,vals){
+const fim=pt||pa0,serie=pt?uid():null;
+for(let k=pa0;k<=fim;k++){
+const cp=proxComp(fat0,k-pa0);const m=mesDe(cp);
+m.despesas.push({id:uid(),serie,cartao:cid||null,desc:base.desc,cat:base.cat,data:base.data||null,
+valor:vals?vals[k-1]:base.valor,pa:pt?k:null,pt:pt||null});
+atualizaFaturaEm(cp,cid);
+}
+return fim-pa0;
+}
+function parcelasDe(valor,pt,modo){
+if(!pt||pt<2)return [valor];
+if(modo!=='total')return Array(pt).fill(valor);
+const base=Math.floor(valor/pt*100)/100;
+const arr=Array(pt).fill(base);
+arr[0]=r2(valor-base*(pt-1));
+return arr;
+}
+
+/* ---------- compras recorrentes ---------- */
+function recs(){return DB.config.recorrentes=DB.config.recorrentes||[]}
+function aplicaRecorrentes(cp){
+if(!DB.config.recorrentes||!DB.config.recorrentes.length)return false;
+const m=mesDe(cp);const mexeu=new Set();let mud=false;
+DB.config.recorrentes.forEach(r=>{
+for(let i=-2;i<=0;i++){
+const cm=proxComp(cp,i);
+if(cm<r.inicio||(r.fim&&cm>r.fim)||(r.pula||[]).includes(cm))continue;
+const c=r.cartao?cartao(r.cartao):null;
+if(r.cartao&&!c)continue;
+const [y,mm]=cm.split('-').map(Number);const nd=new Date(y,mm,0).getDate();
+const data=cm+'-'+String(Math.min(r.dia,nd)).padStart(2,'0');
+const fat=c?(faturaDe(c,data)||cm):cm;
+if(fat!==cp)continue;
+if(m.despesas.some(x=>x.rec===r.id&&x.ref===cm))continue;
+m.despesas.push({id:uid(),rec:r.id,ref:cm,cartao:r.cartao||null,desc:r.desc,valor:r.valor,cat:r.cat,data});
+mexeu.add(r.cartao||'');mud=true;
+}
+});
+mexeu.forEach(cid=>atualizaFaturaEm(cp,cid||null));
+return mud;
+}
+function tiraRecFuturas(rid,depoisDe){
+Object.keys(DB.meses).forEach(k=>{const m=DB.meses[k];if(!m.despesas)return;
+const sai=m.despesas.filter(x=>x.rec===rid&&x.data>depoisDe);
+if(!sai.length)return;
+m.despesas=m.despesas.filter(x=>!sai.includes(x));
+new Set(sai.map(x=>x.cartao)).forEach(cid=>atualizaFaturaEm(k,cid));
+});
+}
 
 const SEED=[];
 
@@ -318,12 +392,7 @@ sujos.clear();
 store.set('casa_db',DB);
 }
 
-function mes(){
-if(!DB.meses[comp])DB.meses[comp]={contas:{},entradas:{},despesas:[]};
-const m=DB.meses[comp];
-m.contas=m.contas||{};m.entradas=m.entradas||{};m.despesas=m.despesas||[];
-return m;
-}
+function mes(){return mesDe(comp)}
 function valorConta(c){const m=mes();return m.contas[c.id]&&m.contas[c.id].valor!=null?m.contas[c.id].valor:c.valor}
 function valorEntrada(e){const m=mes();return m.entradas[e.id]&&m.entradas[e.id].valor!=null?m.entradas[e.id].valor:e.valor}
 function difMes(a,b){const[ay,am]=a.split('-').map(Number),[by,bm]=b.split('-').map(Number);return (by-ay)*12+(bm-am)}
@@ -333,19 +402,20 @@ function contasOcultas(){return DB.config.contas.filter(c=>!ativa(c))}
 function pagoConta(c){const m=mes();return !!(m.contas[c.id]&&m.contas[c.id].pago)}
 function setConta(id,patch){const m=mes();m.contas[id]=Object.assign({},m.contas[id],patch);salva();render()}
 function contasOrd(){return DB.config.contas.filter(c=>ativa(c)).sort((a,b)=>a.dia-b.dia||a.nome.localeCompare(b.nome))}
-function totalMes(){return contasOrd().reduce((s,c)=>s+valorConta(c),0)}
-function totalPago(){return contasOrd().filter(pagoConta).reduce((s,c)=>s+valorConta(c),0)}
+function avulsas(){return mes().despesas.filter(d=>!d.cartao)}
+function totalAvulsas(){return avulsas().reduce((s,d)=>s+d.valor,0)}
+function diaAvulsa(d){return d.data?+d.data.slice(8,10):1}
+function totalMes(){return contasOrd().reduce((s,c)=>s+valorConta(c),0)+totalAvulsas()}
+function totalPago(){return contasOrd().filter(pagoConta).reduce((s,c)=>s+valorConta(c),0)+totalAvulsas()}
 function despesasCartao(id){return mes().despesas.filter(d=>d.cartao===id)}
-function atualizaFatura(cid){
-const soma=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
-mes().contas[cid]=Object.assign({},mes().contas[cid],{valor:soma});
-}
 
 function mudaMes(n){const [a,m]=comp.split('-').map(Number);const d=new Date(a,m-1+n,1);const novo=ym(d);
 if(novo<INICIO)return;comp=novo;diaSel=null;render()}
+function irPara(cp){if(cp<INICIO)return;comp=cp;diaSel=null;render()}
 function aba(t){tab=t;diaSel=null;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));render()}
 
 function render(){
+if(aplicaRecorrentes(comp))salva();
 document.getElementById('mesLabel').textContent=nomeMes(comp);
 document.getElementById('btnPrev').style.visibility=comp<=INICIO?'hidden':'visible';
 const tot=totalMes(),pg=totalPago();
@@ -363,6 +433,7 @@ const [a,m]=comp.split('-').map(Number);
 const nd=new Date(a,m,0).getDate();
 const porDia={};
 contasOrd().forEach(c=>{const d=Math.min(c.dia,nd);(porDia[d]=porDia[d]||{v:0,pago:true});porDia[d].v+=valorConta(c);if(!pagoConta(c))porDia[d].pago=false});
+avulsas().forEach(x=>{const d=Math.min(diaAvulsa(x),nd);(porDia[d]=porDia[d]||{v:0,pago:true});porDia[d].v+=x.valor});
 const max=Math.max(1,...Object.values(porDia).map(o=>o.v));
 let h='';
 for(let d=1;d<=nd;d++){
@@ -380,10 +451,12 @@ const [a,m]=comp.split('-').map(Number);const ndm=new Date(a,m,0).getDate();
 let cs=contasOrd();
 if(!DB.config.contas.length)return `<div class="vazio"><b>Nenhuma conta cadastrada</b>Cole de uma vez a lista das contas do mês, ou adicione uma por uma.</div>
 <div class="btns"><button class="act pri" onclick="importarContas()">Colar minha lista</button><button class="act" onclick="editaConta()">Adicionar uma</button></div>`;
-if(diaSel)cs=cs.filter(c=>Math.min(c.dia,ndm)===diaSel);
-if(!cs.length)return `<div class="vazio"><b>Nada no dia ${diaSel}</b>Toque de novo na barra pra ver o mês inteiro.</div>`;
+let av=avulsas();
+if(diaSel){cs=cs.filter(c=>Math.min(c.dia,ndm)===diaSel);av=av.filter(x=>Math.min(diaAvulsa(x),ndm)===diaSel)}
+if(!cs.length&&!av.length)return `<div class="vazio"><b>Nada no dia ${diaSel}</b>Toque de novo na barra pra ver o mês inteiro.</div>`;
 let h='';
-if(diaSel)h+=`<div class="eyebrow">dia ${diaSel} · ${brc(cs.reduce((s,c)=>s+valorConta(c),0))}</div>`;
+if(diaSel)h+=`<div class="eyebrow">dia ${diaSel} · ${brc(cs.reduce((s,c)=>s+valorConta(c),0)+av.reduce((s,x)=>s+x.valor,0))}</div>`;
+if(cs.length){
 h+='<div class="card">';
 let ultDia=null;
 cs.forEach(c=>{
@@ -399,6 +472,15 @@ h+=`<div class="row ${pg?'pago':''}">
 ultDia=d;
 });
 h+='</div>';
+}
+if(av.length){
+h+=`<div class="eyebrow">débito, Pix e dinheiro · ${brc(av.reduce((s,x)=>s+x.valor,0))}</div><div class="card">`;
+av.slice().sort((x,y)=>diaAvulsa(x)-diaAvulsa(y)).forEach(x=>{
+h+=`<div class="row" onclick="editaLanc('${x.id}')" style="cursor:pointer"><span class="dia">${diaAvulsa(x)}</span>
+<span class="rnome">${esc(x.desc)} ${pillsLanc(x)}</span><span class="rsub">${esc(x.cat)}</span><span class="rval">${br(x.valor)}</span></div>`;
+});
+h+='</div>';
+}
 const oc=contasOcultas();
 h+=`<div class="foot">Toque no nome pra editar o valor do mês. <button onclick="editaConta()">Adicionar conta</button>`;
 if(oc.length)h+=`<br/><button onclick="verOcultas()">${oc.length} fora deste mês</button>`;
@@ -421,11 +503,15 @@ abre('Fora deste mês',h);
 
 function viewCartoes(){
 const carts=contasOrd().filter(c=>c.tipo==='cartao');
-if(!carts.length)return `<div class="vazio"><b>Nenhum cartão cadastrado</b>Adicione um na aba Mês.</div>`;
+if(!carts.length)return `<div class="vazio"><b>Nenhum cartão cadastrado</b>Adicione um na aba Mês, com o tipo "Fatura de cartão".</div>`;
 let h='';
 carts.forEach(c=>{
 const ds=despesasCartao(c.id),lanc=ds.reduce((s,d)=>s+d.valor,0),fat=valorConta(c),falta=fat-lanc;
+const ab=c.fech?faturaAberta(c):null;
 h+=`<div class="card"><h3>${esc(c.nome)}<span>${br(fat)}</span></h3>`;
+h+=`<div class="cinfo">${c.fech
+?`fecha dia ${c.fech} · vence dia ${c.dia}${ab?` · compras de hoje caem na fatura de <b>${mesCurto(ab)}</b>`:''}`
+:`<a onclick="editaConta('${c.id}')">Falta o dia de fechamento — toque para cadastrar</a>`}</div>`;
 if(ds.length){
 const porCat={};ds.forEach(d=>porCat[d.cat]=(porCat[d.cat]||0)+d.valor);
 Object.entries(porCat).sort((x,y)=>y[1]-x[1]).forEach(([k,v])=>{
@@ -436,10 +522,12 @@ const pct=fat>0?Math.min(100,Math.round(lanc/fat*100)):0;
 h+=`<div class="bar-wrap"><div class="bar-top"><span>${ds.length} lançamento${ds.length===1?'':'s'} · ${pct}% da fatura</span>
 <b class="${Math.abs(falta)<0.05?'pos':''}">${falta>0.05?'falta '+br(falta):Math.abs(falta)<0.05?'fechado':'excede '+br(-falta)}</b></div>
 <div class="bar"><i style="width:${pct}%"></i></div></div>`;
-h+=`<div class="btns"><button class="act" onclick="importar('${c.id}')">Importar lista</button><button class="act" onclick="lancar('${c.id}')">Digitar um</button></div>`;
+h+=`<div class="btns"><button class="act" onclick="novaCompra('${c.id}')">Nova compra</button><button class="act" onclick="abrePrint('${c.id}')">Ler print</button><button class="act" onclick="colarLista('${c.id}')">Colar lista</button></div>`;
 if(ds.length)h+=`<div class="btns" style="padding-top:0"><button class="act" onclick="verLancamentos('${c.id}')">Ver os ${ds.length} lançamentos</button></div>`;
 h+='</div>';
 });
+const nr=recs().filter(r=>!r.fim||r.fim>=ym(new Date())).length;
+h+=`<div class="foot"><button onclick="listaRec()">Compras recorrentes${nr?` (${nr})`:''}</button></div>`;
 return h;
 }
 
@@ -449,6 +537,7 @@ const ev=[];
 (DB.config.entradas||[]).forEach(e=>{
 ev.push({dia:Math.min(e.dia,ndm),nome:e.nome,valor:valorEntrada(e),tipo:'in',id:e.id})});
 contasOrd().forEach(c=>ev.push({dia:Math.min(c.dia,ndm),nome:c.nome,valor:-valorConta(c),tipo:'out',pago:pagoConta(c)}));
+avulsas().forEach(x=>ev.push({dia:Math.min(diaAvulsa(x),ndm),nome:x.desc,valor:-x.valor,tipo:'out',pago:true}));
 ev.sort((x,y)=>x.dia-y.dia||(x.tipo==='in'?-1:1));
 if(!(DB.config.entradas||[]).length){
 return `<div class="vazio"><b>Falta cadastrar o que entra</b>Sem as entradas eu não consigo projetar o saldo. Cadastre salários, pró-labore, aluguéis — o que entra e em que dia.</div>
@@ -490,8 +579,8 @@ const sFix=fixas.reduce((s,c)=>s+valorConta(c),0);
 const sParcC=contasOrd().filter(c=>c.tipo!=='cartao'&&c.pt).reduce((s,c)=>s+valorConta(c),0);
 let sCart=0;
 contasOrd().filter(c=>c.tipo==='cartao').forEach(c=>{sCart+=valorConta(c)});
-const estouram=[];
-const comp=sFix+sParcC+sCart;
+const sAv=totalAvulsas();
+const comp=sFix+sParcC+sCart+sAv;
 const renda=(DB.config.entradas||[]).reduce((s,e)=>s+valorEntrada(e),0);
 const pct=renda>0?Math.round(comp/renda*100):null;
 const sobra=renda-comp;
@@ -500,6 +589,7 @@ if(comp>0){
 h+=`<div class="eyebrow">já comprometido neste mês</div><div class="card">
 <div class="row"><span class="rnome">Contas fixas do mês</span><span class="rval">${br(sFix+sParcC)}</span></div>
 <div class="row"><span class="rnome">Já lançado nos cartões</span><span class="rval">${br(sCart)}</span></div>
+${sAv?`<div class="row"><span class="rnome">Débito, Pix e dinheiro</span><span class="rval">${br(sAv)}</span></div>`:''}
 <div class="bar-wrap"><div class="bar-top"><span>Total comprometido</span><b class="${pct!==null&&pct>100?'neg':''}">${brc(comp)}${pct!==null?` · ${pct}% da renda`:''}</b></div>
 <div class="bar"><i style="width:${pct!==null?Math.min(100,pct):0}%;background:${pct!==null&&pct>100?'var(--alert)':'var(--accent)'}"></i></div>
 <div class="hint">${pct===null
@@ -510,7 +600,7 @@ h+=`<div class="eyebrow">já comprometido neste mês</div><div class="card">
 }
 if(naoClass>0.05)h+=`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Ainda sem classificar</span><b>${brc(naoClass)}</b></div>
 <div class="hint">Faturas de cartão lançadas só pelo total. Enquanto esse número for alto, o gráfico abaixo conta meia verdade.</div></div></div>`;
-if(!ent.length)return h+`<div class="vazio"><b>Sem gastos ainda</b>Importe uma fatura na aba Cartões.</div>`;
+if(!ent.length)return h+`<div class="vazio"><b>Sem gastos ainda</b>Toque no + para lançar uma compra.</div>`;
 const max=ent[0][1];
 h+='<div class="eyebrow">para onde foi o mês</div><div class="card">';
 ent.forEach(([k,v])=>{
@@ -533,7 +623,7 @@ if(dp.length){
 h+=`<div class="eyebrow">compras parceladas nas faturas</div><div class="card">`;
 dp.slice().sort((a,b)=>(a.pt-a.pa)-(b.pt-b.pa)).forEach(d=>{
 const rest=d.pt-d.pa;
-h+=`<div class="row"><span class="rnome">${esc(d.desc)}</span>
+h+=`<div class="row" onclick="editaLanc('${d.id}')" style="cursor:pointer"><span class="rnome">${esc(d.desc)} <span class="pill p-parc">${d.pa}/${d.pt}</span></span>
 <span class="rsub">${rest>0?'faltam '+rest:'última'}</span><span class="rval">${br(d.valor)}</span></div>`;
 });
 h+=`</div><div class="foot">Essas somem sozinhas quando a última parcela cair.</div>`;
@@ -543,48 +633,69 @@ return h;
 }
 
 function abre(t,html){document.getElementById('sheetT').textContent=t;document.getElementById('sheetB').innerHTML=html;
+document.getElementById('sheetB').scrollTop=0;
 document.getElementById('sbg').classList.add('on');document.getElementById('sheet').classList.add('on')}
-function fecha(){document.getElementById('sbg').classList.remove('on');document.getElementById('sheet').classList.remove('on');pendentes=[]}
-function fabAcao(){if(tab==='cartoes'){const c=contasOrd().find(x=>x.tipo==='cartao');if(c)importar(c.id)}else if(tab==='caixa')editaEntrada();else editaConta()}
+function fecha(){document.getElementById('sbg').classList.remove('on');document.getElementById('sheet').classList.remove('on');pendentes=[];LEIT=[]}
+function fabAcao(){novaCompra()}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),3500)}
 
+/* ---------- contas e entradas ---------- */
 function editaConta(id){
 const c=id?DB.config.contas.find(x=>x.id===id):null;
-const m=mes();
+const ehC=!!(c&&c.tipo==='cartao');
 abre(c?c.nome:'Nova conta',`
 <label class="f">Nome</label><input id="fNome" value="${c?esc(c.nome):''}" placeholder="Ex: Luz"/>
+<label class="f">Tipo</label><select id="fTipo" onchange="tipoConta()">
+<option value="conta" ${c&&c.tipo==='conta'?'selected':''}>Conta comum</option>
+<option value="cartao" ${ehC?'selected':''}>Fatura de cartão</option></select>
 <div class="duo">
-<div><label class="f">Dia</label><input id="fDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${c?c.dia:''}"/></div>
+<div><label class="f" id="fDiaLab">${ehC?'Vence dia':'Dia'}</label><input id="fDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${c?c.dia:''}"/></div>
 <div><label class="f">Valor deste mês</label><input id="fValor" class="n" type="text" inputmode="decimal" value="${c?br(valorConta(c)):''}"/></div>
 </div>
-<label class="f">Categoria</label><select id="fCat">${cats().concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${k}</option>`).join('')}</select>
-<label class="f">Tipo</label><select id="fTipo">
-<option value="conta" ${c&&c.tipo==='conta'?'selected':''}>Conta comum</option>
-<option value="cartao" ${c&&c.tipo==='cartao'?'selected':''}>Fatura de cartão</option></select>
+<div id="fCartBox" style="display:${ehC?'block':'none'}">
+<div class="duo">
+<div><label class="f">Fecha dia</label><input id="fFech" class="n" type="number" inputmode="numeric" min="1" max="31" value="${c&&c.fech?c.fech:''}" placeholder="ex: 4"/></div>
+<div><label class="f">Compra no dia que fecha</label><select id="fFechInc">
+<option value="0">vai pra próxima</option><option value="1" ${c&&c.fechInclui?'selected':''}>fica nesta</option></select></div>
+</div>
+<div class="hint">É o dia em que a fatura "vira". Com ele, o app sabe sozinho em qual fatura cada compra entra. Na maioria dos bancos, quem compra no próprio dia do fechamento já cai na fatura seguinte.</div>
+</div>
+<div id="fContaBox" style="display:${ehC?'none':'block'}">
+<label class="f">Categoria</label><select id="fCat">${cats().concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${esc(k)}</option>`).join('')}</select>
 <div class="duo">
 <div><label class="f">Parcela nº</label><input id="fPa" class="n" type="number" inputmode="numeric" value="${c&&c.pt?parcelaNo(c):''}" placeholder="—"/></div>
 <div><label class="f">De quantas</label><input id="fPt" class="n" type="number" inputmode="numeric" value="${c&&c.pt?c.pt:''}" placeholder="—"/></div>
 </div>
 <div class="hint">O número da parcela vale para <b>${nomeMes(comp)}</b>. O app avança sozinho nos meses seguintes e tira a conta da lista quando a última cair.</div>
+</div>
 <div class="btns" style="padding:18px 0 4px">
 ${c?`<button class="act" onclick="apagaConta('${c.id}')">Excluir</button>`:''}
 <button class="act pri" onclick="salvaConta(${c?`'${c.id}'`:'null'})">Salvar</button></div>`);
 }
+function tipoConta(){const ehC=$('fTipo').value==='cartao';
+$('fCartBox').style.display=ehC?'block':'none';$('fContaBox').style.display=ehC?'none':'block';
+$('fDiaLab').textContent=ehC?'Vence dia':'Dia'}
 function num(s){if(!s)return 0;s=String(s).trim().replace(/[R$\s]/g,'');if(s.includes(',')){s=s.replace(/\./g,'').replace(',','.')}return parseFloat(s)||0}
 function salvaConta(id){
-const nome=document.getElementById('fNome').value.trim();
-if(!nome){document.getElementById('fNome').focus();return}
-const dia=Math.max(1,Math.min(31,parseInt(document.getElementById('fDia').value)||1));
-const valor=num(document.getElementById('fValor').value);
-const cat=document.getElementById('fCat').value,tipo=document.getElementById('fTipo').value;
-const pa=parseInt(document.getElementById('fPa').value)||null,pt=parseInt(document.getElementById('fPt').value)||null;
+const nome=$('fNome').value.trim();
+if(!nome){$('fNome').focus();return}
+const dia=Math.max(1,Math.min(31,parseInt($('fDia').value)||1));
+const valor=num($('fValor').value);
+const tipo=$('fTipo').value;
+let cat,pa=null,pt=null,fech=null,fechInclui=false;
+if(tipo==='cartao'){cat='Cartão';fech=parseInt($('fFech').value)||null;if(fech)fech=Math.max(1,Math.min(31,fech));fechInclui=$('fFechInc').value==='1'}
+else{cat=$('fCat').value;pa=parseInt($('fPa').value)||null;pt=parseInt($('fPt').value)||null}
 const pcomp=(pa&&pt)?comp:null;
-if(id){const c=DB.config.contas.find(x=>x.id===id);Object.assign(c,{nome,dia,cat,tipo,pa,pt,pcomp});
+if(id){const c=DB.config.contas.find(x=>x.id===id);Object.assign(c,{nome,dia,cat,tipo,pa,pt,pcomp,fech,fechInclui});
 mes().contas[id]=Object.assign({},mes().contas[id],{valor});}
-else{const nid=uid();DB.config.contas.push({id:nid,nome,dia,valor,cat,tipo,pa,pt,pcomp});mes().contas[nid]={valor}}
+else{const nid=uid();DB.config.contas.push({id:nid,nome,dia,valor,cat,tipo,pa,pt,pcomp,fech,fechInclui});mes().contas[nid]={valor}}
 salva();fecha();render();
 }
-function apagaConta(id){DB.config.contas=DB.config.contas.filter(x=>x.id!==id);
-Object.values(DB.meses).forEach(m=>{if(m.contas)delete m.contas[id];if(m.despesas)m.despesas=m.despesas.filter(d=>d.cartao!==id)});
+function apagaConta(id){
+if(!confirm('Excluir esta conta? Os lançamentos ligados a ela também saem.'))return;
+DB.config.contas=DB.config.contas.filter(x=>x.id!==id);
+if(DB.config.recorrentes)DB.config.recorrentes=DB.config.recorrentes.filter(r=>r.cartao!==id);
+Object.keys(DB.meses).forEach(k=>{const m=DB.meses[k];if(m.contas)delete m.contas[id];if(m.despesas)m.despesas=m.despesas.filter(d=>d.cartao!==id);sujos.add(k)});
 salva();fecha();render()}
 
 function editaEntrada(id){
@@ -601,9 +712,9 @@ ${e?`<button class="act" onclick="apagaEntrada('${e.id}')">Excluir</button>`:''}
 <button class="act pri" onclick="salvaEntrada(${e?`'${e.id}'`:'null'})">Salvar</button></div>`);
 }
 function salvaEntrada(id){
-const nome=document.getElementById('eNome').value.trim();if(!nome)return;
-const dia=Math.max(1,Math.min(31,parseInt(document.getElementById('eDia').value)||1));
-const valor=num(document.getElementById('eValor').value);
+const nome=$('eNome').value.trim();if(!nome)return;
+const dia=Math.max(1,Math.min(31,parseInt($('eDia').value)||1));
+const valor=num($('eValor').value);
 if(id){Object.assign(DB.config.entradas.find(x=>x.id===id),{nome,dia});
 mes().entradas[id]=Object.assign({},mes().entradas[id],{valor});}
 else{const nid=uid();DB.config.entradas.push({id:nid,nome,dia,valor});mes().entradas[nid]={valor}}
@@ -612,74 +723,419 @@ salva();fecha();render();
 function apagaEntrada(id){DB.config.entradas=DB.config.entradas.filter(x=>x.id!==id);salva();fecha();render()}
 
 function categoriza(desc){
-const d=desc.toLowerCase();
-for(const [cat,ks] of Object.entries(REGRAS))for(const k of ks)if(d.includes(k))return cat;
+const d=' '+desc.toLowerCase()+' ';
+for(const [cat,ks] of Object.entries(REGRAS))for(const k of ks)if(d.includes(k))return cats().includes(cat)?cat:'Outros';
 return 'Outros';
 }
-function lancar(cid){
-const cc=DB.config.contas.find(x=>x.id===cid)||{nome:'cartão'};
-const at=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
-abre('Novo lançamento',`
-<label class="f">Descrição</label><input id="lDesc" placeholder="Ex: Posto Ipiranga"/>
+
+/* ---------- nova compra (botão +) ---------- */
+let nTipo='vista',nCatManual=false;
+function cartPadrao(cid){
+if(cid&&cartao(cid))return cid;
+const u=store.get('casa_ult');if(u&&cartao(u))return u;
+const cs=cartoes();return cs[0]?cs[0].id:null;
+}
+function novaCompra(cidPre){
+const carts=cartoes();
+const ult=cidPre||store.get('casa_ult');
+const sel=(ult==='avulso'||(ult&&cartao(ult)))?ult:(carts[0]?carts[0].id:'avulso');
+nTipo='vista';nCatManual=false;
+abre('Nova compra',`
+<label class="f">O que foi</label><input id="nDesc" placeholder="Ex: Angeloni" autocomplete="off"/>
 <div class="duo">
-<div><label class="f">Valor</label><input id="lVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
-<div><label class="f">Categoria</label><select id="lCat">${cats().map(k=>`<option>${k}</option>`).join('')}</select></div>
+<div><label class="f">Valor</label><input id="nVal" class="n" type="text" inputmode="decimal" placeholder="0,00"/></div>
+<div><label class="f">Data da compra</label><input id="nData" type="date" value="${hojeISO()}"/></div>
 </div>
-<div class="duo">
-<div><label class="f">Parcela nº</label><input id="lPa" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
-<div><label class="f">De quantas</label><input id="lPt" class="n" type="number" inputmode="numeric" placeholder="—"/></div>
-</div>
-<label class="f">O valor acima é</label>
-<select id="lModo">
-<option value="parcela">o valor de cada parcela (repete igual)</option>
-<option value="total">o total da compra (dividir pelas parcelas)</option>
-</select>
-<div class="hint" id="lPrev"></div>
-<div class="hint">A fatura de <b>${esc(cc.nome)}</b> está em ${brc(at)} e vai subir com este lançamento.</div>
-<div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaLanc('${cid}')">Adicionar</button></div>`);
-document.getElementById('lDesc').addEventListener('blur',function(){
-const c=categoriza(this.value);document.getElementById('lCat').value=c});
-['lVal','lPa','lPt','lModo'].forEach(i=>{const el=document.getElementById(i);
-el.addEventListener('input',previewLanc);el.addEventListener('change',previewLanc)});
-previewLanc();
+<label class="f">Como pagou</label><select id="nForma">
+${carts.map(c=>`<option value="${c.id}" ${sel===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
+<option value="avulso" ${sel==='avulso'?'selected':''}>Débito, Pix ou dinheiro</option></select>
+<label class="f">Categoria</label><select id="nCat">${cats().map(k=>`<option>${esc(k)}</option>`).join('')}</select>
+<label class="f">Tipo de compra</label>
+<div class="seg" id="nTipo">
+<button data-v="vista" class="on" onclick="setTipo('vista')">À vista</button>
+<button data-v="parc" onclick="setTipo('parc')">Parcelada</button>
+<button data-v="rec" onclick="setTipo('rec')">Recorrente</button></div>
+<div id="nParc" style="display:none"><div class="duo">
+<div><label class="f">Quantas parcelas</label><input id="nPt" class="n" type="number" inputmode="numeric" min="2" value="2"/></div>
+<div><label class="f">O valor digitado é</label><select id="nModo"><option value="total">o total da compra</option><option value="parcela">o de cada parcela</option></select></div>
+</div></div>
+<div class="hint" id="nPrev" style="margin-top:12px"></div>
+<div class="btns" style="padding:16px 0 4px"><button class="act pri" onclick="salvaCompra()">Lançar</button></div>
+<div class="foot"><button onclick="abrePrint($('nForma').value)">Ler print da fatura</button> · <button onclick="colarLista($('nForma').value)">Colar lista</button></div>`);
+$('nDesc').addEventListener('input',()=>{if(!nCatManual)$('nCat').value=categoriza($('nDesc').value)});
+$('nCat').addEventListener('change',()=>{nCatManual=true});
+['nVal','nData','nForma','nPt','nModo'].forEach(i=>{const el=$(i);el.addEventListener('input',prevCompra);el.addEventListener('change',prevCompra)});
+prevCompra();
+setTimeout(()=>{try{$('nDesc').focus()}catch(e){}},250);
 }
-function parcelasDe(valor,pt,modo){
-if(!pt||pt<2)return [valor];
-if(modo!=='total')return Array(pt).fill(valor);
-const base=Math.floor(valor/pt*100)/100;
-const arr=Array(pt).fill(base);
-arr[0]=Math.round((valor-base*(pt-1))*100)/100;
-return arr;
+function setTipo(v){nTipo=v;document.querySelectorAll('#nTipo button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+$('nParc').style.display=v==='parc'?'block':'none';prevCompra()}
+function destinoCompra(forma,data){
+const c=forma==='avulso'?null:cartao(forma);
+if(!c)return{c:null,fat:data.slice(0,7),semFech:false};
+const f=faturaDe(c,data);
+return{c,fat:f||comp,semFech:!f};
 }
-function previewLanc(){
-const el=document.getElementById('lPrev');if(!el)return;
-const valor=num(document.getElementById('lVal').value);
-const pt=parseInt(document.getElementById('lPt').value)||null;
-const pa=parseInt(document.getElementById('lPa').value)||null;
-const modo=document.getElementById('lModo').value;
-if(!valor||!pt||pt<2||!pa){el.innerHTML='Deixe as parcelas em branco para uma compra à vista.';return}
-const arr=parcelasDe(valor,pt,modo);
-const iguais=arr.every(v=>Math.abs(v-arr[0])<0.005);
-el.innerHTML=modo==='total'
-?`${pt}× de <b>${brc(arr[arr.length-1])}</b>${iguais?'':` (a primeira: ${brc(arr[0])})`} — total ${brc(valor)}.`
-:`${pt}× de <b>${brc(valor)}</b> — total ${brc(valor*pt)}.`;
+function prevCompra(){
+const el=$('nPrev');if(!el)return;
+const data=$('nData').value||hojeISO(),valor=num($('nVal').value);
+const {c,fat,semFech}=destinoCompra($('nForma').value,data);
+let aviso=semFech?`<span style="color:var(--warn)">${esc(c.nome)} está sem dia de fechamento.</span> Por isso vai para a fatura de ${nomeMes(comp)} (o mês na tela). Cadastre o fechamento abrindo o cartão na aba Mês.<br/>`:'';
+const onde=c?`na fatura de <b>${nomeMes(fat)}</b> (vence ${vencEm(c,fat)})`:`em <b>${nomeMes(fat)}</b>, já como pago`;
+let t;
+if(nTipo==='parc'){
+const pt=parseInt($('nPt').value)||0;
+if(pt<2)t='Informe 2 parcelas ou mais.';
+else{const arr=parcelasDe(valor,pt,$('nModo').value);
+const tot=arr.reduce((s,v)=>s+v,0);
+t=`${pt}× de <b>${brc(arr[pt-1])}</b>${Math.abs(arr[0]-arr[pt-1])>0.004?` (1ª de ${brc(arr[0])})`:''} — total ${brc(tot)}.<br/>Começa ${onde} e a última cai em ${nomeMes(proxComp(fat,pt-1))}.`}
+}else if(nTipo==='rec'){
+t=`Repete todo mês no dia ${+data.slice(8,10)}. A primeira entra ${onde}. Você encerra quando quiser em Cartões → Compras recorrentes.`;
+}else t=`Entra ${onde}.`;
+el.innerHTML=aviso+t;
 }
-function salvaLanc(cid){
-const desc=document.getElementById('lDesc').value.trim();const valor=num(document.getElementById('lVal').value);
-if(!desc||!valor)return;
-const pa=parseInt(document.getElementById('lPa').value)||null;
-const pt=parseInt(document.getElementById('lPt').value)||null;
-const modo=document.getElementById('lModo').value;
-const parcelado=!!(pa&&pt&&pt>1);
-const arr=parcelado?parcelasDe(valor,pt,modo):[valor];
-const d={id:uid(),cartao:cid,desc,valor:parcelado?arr[pa-1]:valor,cat:document.getElementById('lCat').value,pa:parcelado?pa:null,pt:parcelado?pt:null,vals:parcelado?arr:null};
-mes().despesas.push(d);
-const futuras=propaga(cid,d);
-atualizaFatura(cid);
-salva();fecha();render();
-if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+(futuras>1?'s':'')+' lançada'+(futuras>1?'s':'')+' nos meses seguintes.'),100);
+function salvaCompra(){
+const desc=$('nDesc').value.trim(),valor=num($('nVal').value);
+if(!desc){$('nDesc').focus();return}
+if(!valor){$('nVal').focus();return}
+const data=$('nData').value||hojeISO(),forma=$('nForma').value,cat=nCatManual?$('nCat').value:categoriza(desc);
+const {c,fat}=destinoCompra(forma,data);
+const cid=c?c.id:null;
+store.set('casa_ult',forma);
+let msg;
+if(nTipo==='rec'){
+const r={id:uid(),desc,valor,cat,cartao:cid,dia:+data.slice(8,10),inicio:data.slice(0,7),pula:[]};
+recs().push(r);
+aplicaRecorrentes(fat);if(fat!==comp)aplicaRecorrentes(comp);
+msg='Recorrente criada · primeira na '+(c?'fatura de ':'')+nomeMes(fat);
+}else if(nTipo==='parc'){
+const pt=parseInt($('nPt').value)||0;if(pt<2){$('nPt').focus();return}
+const vals=parcelasDe(valor,pt,$('nModo').value);
+insereSerie(cid,fat,{desc,cat,data},1,pt,vals);
+msg=`${pt} parcelas lançadas · de ${mesCurto(fat)} a ${mesCurto(proxComp(fat,pt-1))}`;
+}else{
+insereSerie(cid,fat,{desc,cat,data,valor},1,null,null);
+msg='Lançado em '+(c?'fatura de ':'')+nomeMes(fat);
+}
+salva();fecha();render();toast(msg);
 }
 
+/* ---------- lançamentos: ver, editar, excluir ---------- */
+function pillsLanc(d){return (d.pt?` <span class="pill p-parc">${d.pa}/${d.pt}</span>`:'')+(d.rec?` <span class="pill p-parc">↻ mensal</span>`:'')}
+function verLancamentos(cid){
+const ds=despesasCartao(cid).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')||b.valor-a.valor);
+let h='<div class="prev">';
+ds.forEach(d=>{
+h+=`<div class="prev-row" onclick="editaLanc('${d.id}')" style="cursor:pointer"><span class="dia" style="width:34px">${d.data?d.data.slice(8)+'/'+d.data.slice(5,7):''}</span>
+<span class="pn">${esc(d.desc)}${pillsLanc(d)}</span><span class="rsub">${esc(d.cat)}</span><span class="pv">${br(d.valor)}</span></div>`;
+});
+h+='</div><div class="hint">Toque num lançamento para corrigir ou excluir.</div>';
+abre('Lançamentos · '+(cartao(cid)||{nome:''}).nome,h);
+}
+function editaLanc(id){
+const a=acha(id);if(!a)return;const d=a.d;
+const c=d.cartao?cartao(d.cartao):null;
+const r=d.rec?recs().find(x=>x.id===d.rec):null;
+const podeData=!d.serie&&!d.rec;
+let info=c?`Fatura de ${nomeMes(a.cp)} · ${esc(c.nome)}.`:`Débito, Pix ou dinheiro · ${nomeMes(a.cp)}.`;
+if(d.pt)info+=` Parcela ${d.pa}/${d.pt}: descrição e categoria mudam em todas as parcelas; o valor, só nesta.`;
+if(r)info+=` Compra recorrente: aqui você muda só esta cobrança. Para mudar as próximas, use Cartões → Compras recorrentes.`;
+if(podeData&&c)info+=` Se mudar a data, o app move para a fatura certa.`;
+abre('Editar lançamento',`
+<label class="f">Descrição</label><input id="xDesc" value="${esc(d.desc)}"/>
+<div class="duo">
+<div><label class="f">Valor</label><input id="xVal" class="n" type="text" inputmode="decimal" value="${br(d.valor)}"/></div>
+<div><label class="f">Data da compra</label><input id="xData" type="date" value="${d.data||''}" ${podeData?'':'disabled'}/></div>
+</div>
+<label class="f">Categoria</label><select id="xCat">${cats().map(k=>`<option ${d.cat===k?'selected':''}>${esc(k)}</option>`).join('')}</select>
+<div class="hint">${info}</div>
+<div class="btns" style="padding:18px 0 4px">
+${r?`<button class="act" onclick="pulaRec('${id}')">Excluir só esta</button>`
+:`<button class="act" onclick="apagaLanc('${id}')">${d.serie&&d.pa<d.pt?'Excluir esta e as próximas':'Excluir'}</button>`}
+<button class="act pri" onclick="salvaEdLanc('${id}')">Salvar</button></div>`);
+}
+function salvaEdLanc(id){
+const a=acha(id);if(!a)return;const d=a.d;
+const desc=$('xDesc').value.trim()||d.desc,valor=num($('xVal').value),cat=$('xCat').value,data=$('xData').value;
+if(!valor){$('xVal').focus();return}
+if(d.serie){Object.keys(DB.meses).forEach(k=>{(DB.meses[k].despesas||[]).forEach(x=>{if(x.serie===d.serie){x.desc=desc;x.cat=cat;sujos.add(k)}})})}
+d.desc=desc;d.cat=cat;d.valor=valor;
+let destino=a.cp;
+if(!d.serie&&!d.rec&&data&&data!==d.data){
+d.data=data;
+const c=d.cartao?cartao(d.cartao):null;
+destino=c?(faturaDe(c,data)||a.cp):data.slice(0,7);
+if(destino!==a.cp){a.m.despesas=a.m.despesas.filter(x=>x!==d);mesDe(destino).despesas.push(d);atualizaFaturaEm(destino,d.cartao)}
+}
+atualizaFaturaEm(a.cp,d.cartao);
+salva();fecha();render();
+if(destino!==a.cp)toast('Movido para '+(d.cartao?'a fatura de ':'')+nomeMes(destino));
+}
+function apagaLanc(id){
+const a=acha(id);if(!a)return;const d=a.d;
+if(d.serie&&d.pt){
+Object.keys(DB.meses).forEach(k=>{const m=DB.meses[k];if(!m.despesas)return;
+const antes=m.despesas.length;
+m.despesas=m.despesas.filter(x=>!(x.serie===d.serie&&(x.pa||0)>=(d.pa||0)));
+if(m.despesas.length!==antes)atualizaFaturaEm(k,d.cartao)});
+}else{a.m.despesas=a.m.despesas.filter(x=>x.id!==id);atualizaFaturaEm(a.cp,d.cartao)}
+salva();fecha();render();
+}
+function pulaRec(id){
+const a=acha(id);if(!a)return;const d=a.d;
+const r=recs().find(x=>x.id===d.rec);
+if(r){r.pula=r.pula||[];if(!r.pula.includes(d.ref))r.pula.push(d.ref)}
+a.m.despesas=a.m.despesas.filter(x=>x.id!==id);atualizaFaturaEm(a.cp,d.cartao);
+salva();fecha();render();
+}
+
+/* ---------- compras recorrentes ---------- */
+function listaRec(){
+const agora=ym(new Date());
+const ativas=recs().filter(r=>!r.fim||r.fim>=agora);
+let h='';
+if(!ativas.length)h=`<div class="vazio"><b>Nenhuma compra recorrente</b>Assinaturas, academia, mensalidades: lance pelo + e escolha "Recorrente".</div>`;
+else{
+h+=`<div class="prev">`;
+ativas.slice().sort((x,y)=>x.dia-y.dia).forEach(r=>{
+const c=r.cartao?cartao(r.cartao):null;
+h+=`<div class="prev-row" onclick="editaRec('${r.id}')" style="cursor:pointer"><span class="dia">${r.dia}</span>
+<span class="pn">${esc(r.desc)}</span><span class="rsub">${c?esc(c.nome):'débito/Pix'}</span><span class="pv">${br(r.valor)}</span></div>`;
+});
+h+=`</div><div class="eyebrow" style="margin-top:14px">${brc(ativas.reduce((s,r)=>s+r.valor,0))} por mês</div>`;
+}
+h+=`<div class="hint">Para criar uma nova, use o + e escolha "Recorrente".</div>`;
+abre('Compras recorrentes',h);
+}
+function editaRec(id){
+const r=recs().find(x=>x.id===id);if(!r)return;
+abre(r.desc,`
+<label class="f">Descrição</label><input id="rDesc" value="${esc(r.desc)}"/>
+<div class="duo">
+<div><label class="f">Valor</label><input id="rVal" class="n" type="text" inputmode="decimal" value="${br(r.valor)}"/></div>
+<div><label class="f">Dia da cobrança</label><input id="rDia" class="n" type="number" inputmode="numeric" min="1" max="31" value="${r.dia}"/></div>
+</div>
+<label class="f">Categoria</label><select id="rCat">${cats().map(k=>`<option ${r.cat===k?'selected':''}>${esc(k)}</option>`).join('')}</select>
+<div class="hint">As mudanças valem para as cobranças a partir de hoje. As que já passaram ficam como estão.</div>
+<div class="btns" style="padding:18px 0 4px">
+<button class="act" onclick="encerraRec('${id}')">Encerrar</button>
+<button class="act pri" onclick="salvaRec('${id}')">Salvar</button></div>`);
+}
+function salvaRec(id){
+const r=recs().find(x=>x.id===id);if(!r)return;
+r.desc=$('rDesc').value.trim()||r.desc;r.valor=num($('rVal').value)||r.valor;r.cat=$('rCat').value;
+r.dia=Math.max(1,Math.min(31,parseInt($('rDia').value)||r.dia));
+const h=hojeISO();
+const meses=Object.keys(DB.meses).filter(k=>(DB.meses[k].despesas||[]).some(x=>x.rec===id&&x.data>h));
+tiraRecFuturas(id,h);
+new Set(meses.concat(comp)).forEach(k=>aplicaRecorrentes(k));
+salva();fecha();render();toast('Recorrente atualizada');
+}
+function encerraRec(id){
+const r=recs().find(x=>x.id===id);if(!r)return;
+if(!confirm('Encerrar "'+r.desc+'"? As cobranças que já passaram ficam; as próximas saem.'))return;
+const h=hojeISO(),agora=ym(new Date());
+r.fim=r.dia<=+h.slice(8,10)?agora:proxComp(agora,-1);
+tiraRecFuturas(id,h);
+salva();fecha();render();toast('Recorrente encerrada');
+}
+
+/* ---------- leitura de print (OCR no aparelho) e de lista colada ---------- */
+const MES3={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+const IGNORA=/pagamento|estorno|saldo|total|limite|dispon[ií]vel|valor m[ií]nimo|cr[eé]dito de|fatura (atual|anterior|fechada|aberta|paga)|encargos|juros d|melhor dia|vencimento/i;
+let LEIT=[],LCID=null,LRAW=null,LIGN=0,LMODA=null;
+
+function montaData(d,m,a){
+if(!(d>=1&&d<=31&&m>=1&&m<=12))return null;
+const h=new Date();
+let y=a?(+a<100?2000+ +a:+a):h.getFullYear();
+if(!a&&new Date(y,m-1,d)>new Date(h.getFullYear(),h.getMonth(),h.getDate()+1))y--;
+return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+function interpreta(txt){
+const itens=[];let ign=0,dataAt=null,solta='';
+const ontem=new Date();ontem.setDate(ontem.getDate()-1);
+String(txt||'').split(/\n/).forEach(l0=>{
+let s=l0.replace(/[;\t|]/g,' ').replace(/\s+/g,' ').trim();
+if(!s)return;
+let data=null,md;
+if(/^hoje\b/i.test(s)){data=hojeISO();s=s.replace(/^hoje\b/i,'').trim()}
+else if(/^ontem\b/i.test(s)){data=iso(ontem);s=s.replace(/^ontem\b/i,'').trim()}
+else if((md=s.match(/^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?:\s*[\/.\-]\s*(\d{2,4}))?(?!\d)/))){
+data=montaData(+md[1],+md[2],md[3]);if(data)s=s.slice(md[0].length).trim()}
+else if((md=s.match(/^(\d{1,2})\s*(?:de\s+)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?(?:\s*(?:de\s+)?(\d{4}))?/i))){
+data=montaData(+md[1],MES3[md[2].toLowerCase()],md[3]);if(data)s=s.slice(md[0].length).trim()}
+const re=/(?:([-−—–])(?=\s?R\s?\$|\d))?(?:R\s?\$|\bRS)?\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+\.\d{2})(?!\d)/gi;
+const vs=[...s.matchAll(re)];
+if(!vs.length){
+if(data&&s.replace(/[^a-zà-ú]/gi,'').length<=8){dataAt=data;solta=''}
+else if(/[a-zà-ú]{3}/i.test(s)){if(IGNORA.test(s))solta='';else solta=s;if(data)dataAt=data}
+return;
+}
+const v=vs[vs.length-1];
+let desc=(s.slice(0,v.index)+' '+s.slice(v.index+v[0].length)).trim();
+if(data)dataAt=data;
+if(v[1]){ign++;solta='';return}
+const valor=num(v[2]);if(!valor){solta='';return}
+let pa=null,pt=null;
+const mp=desc.match(/(?:parc(?:ela)?\.?\s*)?\(?(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\)?(?!\d)/i);
+if(mp){let a1=+mp[1],a2=+mp[2];if(a2>48&&mp[2].length===2)a2=+mp[2][0];
+if(a2>=2&&a2<=48&&a1>=1&&a1<=a2){pa=a1;pt=a2;desc=desc.replace(mp[0],' ').replace(/\bparc(ela)?\.?\s*$/i,' ')}}
+desc=desc.replace(/\b\d{1,2}:\d{2}\b/g,' ').replace(/R\s?\$|\bRS\b/g,' ').replace(/\s+/g,' ')
+.replace(/^[\s\-–—•·*:"'”]+|[\s\-–—•·*:"'”]+$/g,'').trim();
+if(!/[a-zà-ú]{2}/i.test(desc)&&solta)desc=solta;
+const ctx=desc+' '+solta;solta='';
+if(IGNORA.test(desc)||(!/[a-zà-ú]{2}/i.test(desc)&&IGNORA.test(ctx))){ign++;return}
+itens.push({data:data||dataAt,desc:desc||'(sem descrição)',valor,pa,pt});
+});
+return {itens,ign};
+}
+
+function selCart(cid){
+return `<label class="f">Cartão</label><select id="pCart" onchange="trocaCartLeit(this.value)">
+${cartoes().map(c=>`<option value="${c.id}" ${c.id===cid?'selected':''}>${esc(c.nome)}</option>`).join('')}</select>`;
+}
+function abrePrint(cidPre){
+const cid=cartPadrao(cidPre);
+if(!cid){alert('Cadastre um cartão primeiro (aba Mês → Adicionar conta → tipo Fatura de cartão).');return}
+LCID=cid;LEIT=[];
+abre('Ler print da fatura',`${selCart(cid)}
+<label class="act pri" style="margin-top:16px">Escolher prints<input type="file" accept="image/*" multiple style="display:none" onchange="lerPrints(this.files)"/></label>
+<div class="hint">Pode escolher vários de uma vez. A leitura acontece no próprio celular — na primeira vez demora um pouco mais, porque baixa o leitor. Depois você confere tudo antes de lançar.</div>
+<div id="pOut"></div>`);
+}
+function colarLista(cidPre){
+const cid=cartPadrao(cidPre);
+if(!cid){alert('Cadastre um cartão primeiro (aba Mês → Adicionar conta → tipo Fatura de cartão).');return}
+LCID=cid;LEIT=[];
+abre('Colar lista',`${selCart(cid)}
+<label class="f">Linhas da fatura</label>
+<textarea id="pTxt0" placeholder="15/10 Angeloni 87,66
+16/10 Loja X 3/5 120,00
+Posto Mime 54,00"></textarea>
+<div class="hint">Uma compra por linha. Com a data no começo, o app descobre a fatura sozinho.</div>
+<div class="btns" style="padding:14px 0 0"><button class="act pri" onclick="mostraLeitura($('pCart').value,interpreta($('pTxt0').value),null)">Ler linhas</button></div>
+<div id="pOut"></div>`);
+}
+function carregaTess(){
+if(window.Tesseract)return Promise.resolve();
+return new Promise((ok,err)=>{const s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+s.onload=ok;s.onerror=()=>err(new Error('não consegui baixar o leitor. Confira a internet.'));document.head.appendChild(s)});
+}
+function preparaImg(file){
+return new Promise((ok,err)=>{
+const u=URL.createObjectURL(file);const im=new Image();
+im.onload=()=>{
+let w=im.naturalWidth,h=im.naturalHeight;
+const f0=w<1400?2:1;w*=f0;h*=f0;
+if(w*h>14e6){const f=Math.sqrt(14e6/(w*h));w=Math.round(w*f);h=Math.round(h*f)}
+const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+const cx=cv.getContext('2d');cx.drawImage(im,0,0,w,h);
+const id=cx.getImageData(0,0,w,h),p=id.data;let soma=0;
+for(let i=0;i<p.length;i+=4){const g=0.299*p[i]+0.587*p[i+1]+0.114*p[i+2];p[i]=p[i+1]=p[i+2]=g;soma+=g}
+if(soma/(p.length/4)<128)for(let i=0;i<p.length;i+=4){p[i]=p[i+1]=p[i+2]=255-p[i]}
+cx.putImageData(id,0,0);URL.revokeObjectURL(u);ok(cv);
+};
+im.onerror=()=>{URL.revokeObjectURL(u);err(new Error('esse arquivo não é uma imagem que eu consiga abrir.'))};
+im.src=u;
+});
+}
+async function lerPrints(files){
+const out=$('pOut');if(!files||!files.length)return;
+const lista=[...files];
+const status=t=>{if($('pOut'))$('pOut').innerHTML=`<div class="hint" style="margin-top:14px">${t}</div>`};
+let atual=0,w=null;
+try{
+status('Carregando o leitor…');
+await carregaTess();
+w=await Tesseract.createWorker('por',1,{logger:m=>{
+if(m.status==='recognizing text')status(`Lendo print ${atual+1} de ${lista.length}… ${Math.round((m.progress||0)*100)}%`);
+else status('Preparando o leitor (só demora na primeira vez)…');}});
+let txt='';
+for(;atual<lista.length;atual++){const img=await preparaImg(lista[atual]);const r=await w.recognize(img);txt+=r.data.text+'\n'}
+await w.terminate();w=null;
+if(!$('pOut'))return;
+mostraLeitura($('pCart').value,interpreta(txt),txt);
+}catch(e){
+if(w){try{await w.terminate()}catch(_){}}
+status(`<span style="color:var(--alert)">Não consegui ler: ${esc(e&&e.message||e)}</span>`);
+}
+}
+function mostraLeitura(cid,res,raw){
+LCID=cid;LRAW=raw;LIGN=res.ign;
+LEIT=res.itens.map(it=>Object.assign({},it,{cat:categoriza(it.desc)}));
+recalcLeit();desenhaLeit();
+}
+function trocaCartLeit(v){LCID=v;if(LEIT.length){recalcLeit();desenhaLeit()}}
+function fatPadrao(r){
+const c=cartao(LCID);const ab=(c&&faturaAberta(c))||comp;
+if(!c||!c.fech)return ab;
+if(r.pa&&r.pa>1)return LMODA||ab;
+if(!r.data)return LMODA||ab;
+return faturaDe(c,r.data);
+}
+function ehDup(r){const m=DB.meses[r.fat];
+return !!(m&&m.despesas&&m.despesas.some(x=>x.cartao===LCID&&Math.abs(x.valor-r.valor)<0.005&&(!x.data||!r.data||x.data===r.data)))}
+function recalcLeit(){
+const c=cartao(LCID);const cont={};
+if(c&&c.fech)LEIT.forEach(r=>{if(r.data&&!(r.pa&&r.pa>1)){const f=faturaDe(c,r.data);cont[f]=(cont[f]||0)+1}});
+LMODA=Object.keys(cont).sort((a,b)=>cont[b]-cont[a])[0]||null;
+LEIT.forEach(r=>{r.fat=fatPadrao(r);r.dup=ehDup(r);r.inc=!r.dup});
+}
+function mudaDataLeit(i,v){const r=LEIT[i];r.data=v||null;r.fat=fatPadrao(r);r.dup=ehDup(r);desenhaLeit()}
+function mudaParcLeit(i,v){const r=LEIT[i];const m=String(v).match(/(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})/);
+if(m&&+m[2]>=2&&+m[1]>=1&&+m[1]<=+m[2]){r.pa=+m[1];r.pt=+m[2]}else{r.pa=null;r.pt=null}}
+function blocoTexto(aberto){
+if(LRAW==null)return '';
+return `<details ${aberto?'open':''} style="margin-top:14px"><summary class="hint" style="cursor:pointer;text-decoration:underline">Ver o texto que o leitor encontrou</summary>
+<textarea id="pTxt" style="margin-top:8px">${esc(LRAW)}</textarea>
+<div class="hint">Dá para corrigir o texto aqui e mandar ler de novo.</div>
+<div class="btns" style="padding:10px 0 0"><button class="act" onclick="releTexto()">Reler este texto</button></div></details>`;
+}
+function releTexto(){LRAW=$('pTxt').value;mostraLeitura(LCID,interpreta(LRAW),LRAW)}
+function desenhaLeit(){
+const out=$('pOut');if(!out)return;
+if(!LEIT.length){
+out.innerHTML=`<div class="hint" style="color:var(--alert);margin-top:14px">Não encontrei compras com valor. ${LRAW!=null?'Veja abaixo o texto que o leitor encontrou — dá para corrigir e reler. Prints mais nítidos, sem cortar os valores, ajudam.':'Cada linha precisa ter um valor, tipo "Angeloni 87,66".'}</div>`+blocoTexto(true);
+return;
+}
+const c=cartao(LCID);const ab=(c&&faturaAberta(c))||comp;
+const opts=new Set();for(let i=-3;i<=3;i++)opts.add(proxComp(ab,i));LEIT.forEach(r=>opts.add(r.fat));
+const lista=[...opts].sort();
+let h=`<div class="eyebrow" style="margin:18px 2px 6px">${LEIT.length} compra${LEIT.length>1?'s':''} encontrada${LEIT.length>1?'s':''}</div><div class="prev">`;
+LEIT.forEach((r,i)=>{
+h+=`<div class="lr ${r.inc?'':'off'}">
+<div class="lr1"><span class="chk ${r.inc?'on':''}" onclick="LEIT[${i}].inc=!LEIT[${i}].inc;desenhaLeit()">✓</span>
+<input value="${esc(r.desc)}" onchange="LEIT[${i}].desc=this.value;LEIT[${i}].cat=LEIT[${i}].cat||categoriza(this.value)"/>
+<input class="n v" type="text" inputmode="decimal" value="${br(r.valor)}" onchange="LEIT[${i}].valor=num(this.value);rodapeLeit()"/></div>
+<div class="lr2">
+<input type="date" value="${r.data||''}" onchange="mudaDataLeit(${i},this.value)"/>
+<select onchange="LEIT[${i}].fat=this.value">${lista.map(k=>`<option value="${k}" ${k===r.fat?'selected':''}>fatura ${mesCurto(k)}</option>`).join('')}</select>
+<select onchange="LEIT[${i}].cat=this.value">${cats().map(k=>`<option ${k===r.cat?'selected':''}>${esc(k)}</option>`).join('')}</select>
+<input class="n" type="text" placeholder="parcela ex: 3/5" value="${r.pt?r.pa+'/'+r.pt:''}" onchange="mudaParcLeit(${i},this.value)"/>
+</div>
+${r.dup?`<div class="lrw">Parece já lançada nessa fatura, por isso veio desmarcada.</div>`:''}
+</div>`;
+});
+h+=`</div><div class="hint">Confira e corrija o que precisar. Cada compra vai para a fatura que a data indica. Parcelas da 2ª em diante entram na mesma fatura das outras compras do print, e as parcelas seguintes são lançadas sozinhas nos próximos meses.${LIGN?` ${LIGN} linha${LIGN>1?'s':''} ignorada${LIGN>1?'s':''} (pagamentos, totais, estornos).`:''}</div>
+<div class="btns" style="padding:14px 0 4px"><button class="act pri" id="lBtn" onclick="confirmaLeit()"></button></div>`+blocoTexto(false);
+out.innerHTML=h;rodapeLeit();
+}
+function rodapeLeit(){const b=$('lBtn');if(!b)return;const s=LEIT.filter(r=>r.inc&&r.valor>0);
+b.textContent=s.length?`Lançar ${s.length} compra${s.length>1?'s':''} · ${brc(s.reduce((t,r)=>t+r.valor,0))}`:'Nenhuma marcada';b.disabled=!s.length}
+function confirmaLeit(){
+let n=0,fut=0;
+LEIT.filter(r=>r.inc&&r.valor>0).forEach(r=>{
+const pt=r.pt&&r.pt>=2?r.pt:null;const pa=pt?Math.min(Math.max(r.pa||1,1),pt):1;
+fut+=insereSerie(LCID,r.fat,{desc:(r.desc||'').trim()||'(sem descrição)',cat:r.cat,data:r.data||null,valor:r.valor},pa,pt,null);n++;
+});
+store.set('casa_ult',LCID);
+salva();fecha();render();
+toast(`${n} compra${n>1?'s':''} lançada${n>1?'s':''}`+(fut?` · ${fut} parcela${fut>1?'s':''} futura${fut>1?'s':''}`:''));
+}
+
+/* ---------- lista de contas (cadastro inicial) ---------- */
 function importarContas(){
 abre('Colar lista de contas',`
 <div class="hint" style="margin:0 0 10px">Uma conta por linha, no formato <b>dia · nome · valor</b>. Contas com "cartão" no nome entram como fatura.</div>
@@ -690,7 +1146,7 @@ abre('Colar lista de contas',`
 <div id="cPrev"></div>`);
 }
 function lerContas(){
-const linhas=document.getElementById('cTxt').value.split('\n').map(s=>s.trim()).filter(Boolean);
+const linhas=$('cTxt').value.split('\n').map(s=>s.trim()).filter(Boolean);
 pendentes=[];
 linhas.forEach(l=>{
 let s=l.replace(/[;\t]/g,' ').replace(/\s+/g,' ').trim();
@@ -706,16 +1162,16 @@ const nome=s.slice(0,s.lastIndexOf(ult)).trim().replace(/[-–—|]+$/,'').trim(
 const ehCart=/cart|nubank|fatura/i.test(nome);
 pendentes.push({id:uid(),nome,dia,valor,cat:ehCart?'Cartão':'Outros',tipo:ehCart?'cartao':'conta'});
 });
-if(!pendentes.length){document.getElementById('cPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não consegui ler. Cada linha precisa começar com o dia e terminar com o valor, tipo "1 Água 120,00".</div>`;return}
+if(!pendentes.length){$('cPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não consegui ler. Cada linha precisa começar com o dia e terminar com o valor, tipo "1 Água 120,00".</div>`;return}
 let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} contas · ${brc(pendentes.reduce((s,p)=>s+p.valor,0))}</div><div class="prev">`;
 pendentes.forEach((p,i)=>{
 h+=`<div class="prev-row"><span class="dia">${p.dia}</span><span class="pn">${esc(p.nome)}</span>
-<select onchange="pendentes[${i}].cat=this.value">${cats().concat('Cartão').map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
+<select onchange="pendentes[${i}].cat=this.value">${cats().concat('Cartão').map(k=>`<option ${p.cat===k?'selected':''}>${esc(k)}</option>`).join('')}</select>
 <span class="pv">${br(p.valor)}</span></div>`;
 });
-h+=`</div><div class="hint">Ajuste as categorias agora se quiser. Parcelas com prazo você marca depois, abrindo cada conta.</div>
+h+=`</div><div class="hint">Ajuste as categorias agora se quiser. Parcelas com prazo e o fechamento dos cartões você marca depois, abrindo cada conta.</div>
 <div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="confirmaContas()">Salvar ${pendentes.length} contas</button></div>`;
-document.getElementById('cPrev').innerHTML=h;
+$('cPrev').innerHTML=h;
 }
 function confirmaContas(){
 pendentes.forEach(p=>{DB.config.contas.push({id:p.id,nome:p.nome,dia:p.dia,valor:p.valor,cat:p.cat,tipo:p.tipo,pa:null,pt:null,pcomp:null});
@@ -723,87 +1179,12 @@ mes().contas[p.id]={valor:p.valor}});
 salva();fecha();render();
 }
 
-function importar(cid){
-const c=DB.config.contas.find(x=>x.id===cid);
-abre('Importar · '+c.nome,`
-<div class="hint" style="margin:0 0 10px">Cole as linhas da fatura — do CSV do banco, do print, ou do resumo que você recebeu. Uma por linha. O app pega o último número como valor.</div>
-<textarea id="iTxt" placeholder="ANGELONI SUPERM 342,80
-POSTO IPIRANGA 289,00
-IFOOD *REST 67,90
-MAGALU PARC 3/10 120,00"></textarea>
-<div class="btns" style="padding:14px 0 0"><button class="act pri" onclick="lerImport('${cid}')">Ler linhas</button></div>
-<div id="iPrev"></div>`);
-}
-function lerImport(cid){
-const linhas=document.getElementById('iTxt').value.split('\n').map(s=>s.trim()).filter(Boolean);
-pendentes=[];
-linhas.forEach(l=>{
-let s=l.replace(/;/g,' ').replace(/\t/g,' ');
-const nums=s.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+[.,]\d{2}|-?\d+/g);
-if(!nums)return;
-const ult=nums[nums.length-1];
-const valor=num(ult);
-if(!valor)return;
-let desc=s.slice(0,s.lastIndexOf(ult)).trim().replace(/[-–—|]+$/,'').trim();
-desc=desc.replace(/^\d{2}[\/.]\d{2}([\/.]\d{2,4})?\s*/,'').trim();
-if(!desc)desc='(sem descrição)';
-const pm=desc.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
-pendentes.push({id:uid(),desc,valor,cat:categoriza(desc),pa:pm?+pm[1]:null,pt:pm?+pm[2]:null});
-});
-if(!pendentes.length){document.getElementById('iPrev').innerHTML=`<div class="hint" style="color:var(--alert)">Não achei valores nessas linhas. Cada linha precisa terminar com um número, tipo "MERCADO 342,80".</div>`;return}
-const tot=pendentes.reduce((s,p)=>s+p.valor,0);
-const c=DB.config.contas.find(x=>x.id===cid)||{nome:'cartão'};
-const jaLanc=despesasCartao(cid).reduce((s,d)=>s+d.valor,0);
-let h=`<div class="eyebrow" style="margin:18px 2px 6px">${pendentes.length} linhas · ${brc(tot)}</div><div class="prev">`;
-pendentes.forEach((p,i)=>{
-h+=`<div class="prev-row"><span class="pn">${esc(p.desc)}${p.pt?` <span class="pill p-parc">${p.pa}/${p.pt}</span>`:''}</span>
-<select onchange="pendentes[${i}].cat=this.value">${cats().map(k=>`<option ${p.cat===k?'selected':''}>${k}</option>`).join('')}</select>
-<span class="pv">${br(p.valor)}</span></div>`;
-});
-h+=`</div><div class="hint">Confira as categorias antes de salvar. O que o app errar aqui, ele erra no gráfico.<br/>Ao salvar, a fatura de <b>${esc(c.nome)}</b> neste mês passa a <b>${brc(jaLanc+tot)}</b>. Você pode alterar depois na aba Mês.</div>
-<div class="btns" style="padding:14px 0 4px"><button class="act pri" onclick="confirmaImport('${cid}')">Salvar ${pendentes.length} lançamentos</button></div>`;
-document.getElementById('iPrev').innerHTML=h;
-}
-function confirmaImport(cid){
-let futuras=0;
-pendentes.forEach(p=>{
-const d={id:p.id,cartao:cid,desc:p.desc,valor:p.valor,cat:p.cat,pa:p.pa,pt:p.pt};
-mes().despesas.push(d);
-futuras+=propaga(cid,d);
-});
-atualizaFatura(cid);
-salva();fecha();render();
-if(futuras)setTimeout(()=>alert(futuras+' parcela'+(futuras>1?'s':'')+' futura'+(futuras>1?'s':'')+' lançada'+(futuras>1?'s':'')+' nos meses seguintes.'),100);
-}function verLancamentos(cid){
-const ds=despesasCartao(cid);
-let h='<div class="prev">';
-ds.slice().sort((a,b)=>(b.pt?1:0)-(a.pt?1:0)||b.valor-a.valor).forEach(d=>{
-h+=`<div class="prev-row"><span class="pn">${esc(d.desc)}${d.pt?` <span class="pill p-parc">${d.pa}/${d.pt}</span>`:''}</span>
-<select onchange="mudaCat('${d.id}','${cid}',this.value)">${cats().map(k=>`<option ${d.cat===k?'selected':''}>${k}</option>`).join('')}</select>
-<span class="pv">${br(d.valor)}</span>
-<span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaLanc('${d.id}','${cid}')">×</span></div>`;
-});
-h+='</div>';
-abre('Lançamentos',h);
-}
-function mudaCat(id,cid,cat){
-const m=mes();const d=m.despesas.find(x=>x.id===id);
-if(!d)return;
-d.cat=cat;
-if(d.serie){
-Object.keys(DB.meses).forEach(k=>{if(k<=comp)return;
-const mm=DB.meses[k];if(!mm.despesas)return;
-mm.despesas.forEach(x=>{if(x.serie===d.serie){x.cat=cat;sujos.add(k)}});
-});
-}
-salva();render();
-}
-
+/* ---------- categorias ---------- */
 function gerenciaCats(){
 const lista=cats();
 let h='<div class="prev">';
 lista.forEach(k=>{
-h+=`<div class="prev-row"><span class="pn">${esc(k)}</span>${k==='Outros'?'<span class="rsub">fixa</span>':`<span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaCat('${esc(k)}')">×</span>`}</div>`;
+h+=`<div class="prev-row"><span class="pn">${esc(k)}</span>${k==='Outros'?'<span class="rsub">fixa</span>':`<span class="chk" style="width:26px;border:none;color:var(--ink-faint);font-size:16px" onclick="apagaCat(this.dataset.c)" data-c="${esc(k)}">×</span>`}</div>`;
 });
 h+='</div>';
 h+=`<label class="f">Nova categoria</label><input id="ncNome" placeholder="Ex: Pet, Escola, José"/>
@@ -812,7 +1193,7 @@ h+=`<label class="f">Nova categoria</label><input id="ncNome" placeholder="Ex: P
 abre('Categorias',h);
 }
 function addCat(){
-const n=document.getElementById('ncNome').value.trim();
+const n=$('ncNome').value.trim();
 if(!n)return;
 const atual=cats();
 if(atual.some(k=>k.toLowerCase()===n.toLowerCase()))return;
@@ -828,28 +1209,26 @@ m.despesas.forEach(d=>{if(d.cat===nome){d.cat='Outros';mudou=true}});
 if(mudou)sujos.add(k);
 });
 DB.config.contas.forEach(c=>{if(c.cat===nome)c.cat='Outros'});
+recs().forEach(r=>{if(r.cat===nome)r.cat='Outros'});
 salva();gerenciaCats();render();
 }
 
-function apagaLanc(id,cid){const m=mes();const alvo=m.despesas.find(d=>d.id===id);
-if(alvo&&alvo.serie)apagaSerie(alvo.serie);
-m.despesas=m.despesas.filter(d=>d.id!==id);atualizaFatura(cid);salva();render();verLancamentos(cid)}
-
+/* ---------- login ---------- */
 function mostraLogin(msg){
 document.getElementById('login').classList.add('on');
 document.getElementById('lgErro').textContent=msg||'';
 }
 async function entrar(){
-const b=document.getElementById('lgBtn'),e=document.getElementById('lgErro');
-const email=document.getElementById('lgEmail').value.trim();
-const senha=document.getElementById('lgSenha').value;
+const b=$('lgBtn'),e=$('lgErro');
+const email=$('lgEmail').value.trim();
+const senha=$('lgSenha').value;
 if(!email||!senha){e.textContent='Preencha e-mail e senha.';return}
 b.disabled=true;b.textContent='Entrando…';e.textContent='';
 const {error}=await sb.auth.signInWithPassword({email,password:senha});
 b.disabled=false;b.textContent='Entrar';
 if(error){e.textContent='E-mail ou senha não conferem.';return}
 document.getElementById('login').classList.remove('on');
-document.getElementById('lgSenha').value='';
+$('lgSenha').value='';
 try{await carrega();render()}catch(err){e.textContent='Entrou, mas não consegui ler os dados. Confira as permissões da tabela.'}
 }
 async function sair(){
@@ -871,7 +1250,7 @@ if(!data||!data.session){render();mostraLogin();return}
 try{await carrega()}catch(e){sb=null;await carrega();alert('Não consegui conectar. O app abriu no modo só deste aparelho.')}
 render();
 document.addEventListener('visibilitychange',async()=>{
-if(document.visibilityState==='visible'&&sb){try{await carrega();render()}catch(e){}}
+if(document.visibilityState==='visible'&&sb&&!document.getElementById('sheet').classList.contains('on')){try{await carrega();render()}catch(e){}}
 });
 })();
 </script>
