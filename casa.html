@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#14231D"/>
+<meta name="apple-mobile-web-app-title" content="Casa"/>
+<link rel="manifest" href="casa.webmanifest"/>
+<link rel="apple-touch-icon" href="casa-icon-192.png"/>
 <title>Casa · contas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -225,6 +228,7 @@ padding:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
 // NÃO edite estas duas linhas — elas se viram sozinhas.
 const SUPABASE_URL=(window.CASA_CONFIG&&window.CASA_CONFIG.url)||'';
 const SUPABASE_KEY=(window.CASA_CONFIG&&window.CASA_CONFIG.key)||'';
+const VAPID=(window.CASA_CONFIG&&window.CASA_CONFIG.vapid)||'';
 
 const CATS_PADRAO=['Mercado','Combustível','Restaurante','Farmácia','Casa','Carro','Duda','Compras','Saúde','Lazer','Outros'];
 function cats(){const c=(DB.config&&DB.config.cats&&DB.config.cats.length)?DB.config.cats:CATS_PADRAO;
@@ -385,9 +389,11 @@ if(k!==comp&&!sujos.has(k)&&!Object.keys(m.contas||{}).length&&!Object.keys(m.en
 if(sb){
 const linhas=[{chave:'config',dados:DB.config},{chave:'versao',dados:{n:DB.versao}}];
 const alvos=new Set([comp,...sujos]);
+checaMetas(alvos);
 alvos.forEach(k=>{if(DB.meses[k])linhas.push({chave:k,dados:DB.meses[k]})});
 sb.from('casa_dados').upsert(linhas).then(({error})=>{if(error)console.warn(error)});
 }
+if(!sb)checaMetas(new Set([comp,...sujos]));
 sujos.clear();
 store.set('casa_db',DB);
 }
@@ -426,6 +432,7 @@ renderFita();
 const M=document.getElementById('main');
 M.innerHTML=tab==='mes'?viewMes():tab==='cartoes'?viewCartoes():tab==='caixa'?viewCaixa():viewGastos();
 M.scrollTop=0;
+if(tab==='gastos')atualizaAvStatus();
 }
 
 function renderFita(){
@@ -455,6 +462,7 @@ let av=avulsas();
 if(diaSel){cs=cs.filter(c=>Math.min(c.dia,ndm)===diaSel);av=av.filter(x=>Math.min(diaAvulsa(x),ndm)===diaSel)}
 if(!cs.length&&!av.length)return `<div class="vazio"><b>Nada no dia ${diaSel}</b>Toque de novo na barra pra ver o mês inteiro.</div>`;
 let h='';
+if(!diaSel)h+=blocoMeta();
 if(diaSel)h+=`<div class="eyebrow">dia ${diaSel} · ${brc(cs.reduce((s,c)=>s+valorConta(c),0)+av.reduce((s,x)=>s+x.valor,0))}</div>`;
 if(cs.length){
 h+='<div class="card">';
@@ -511,7 +519,8 @@ const ab=c.fech?faturaAberta(c):null;
 h+=`<div class="card"><h3>${esc(c.nome)}<span>${br(fat)}</span></h3>`;
 h+=`<div class="cinfo">${c.fech
 ?`fecha dia ${c.fech} · vence dia ${c.dia}${ab?` · compras de hoje caem na fatura de <b>${mesCurto(ab)}</b>`:''}`
-:`<a onclick="editaConta('${c.id}')">Falta o dia de fechamento — toque para cadastrar</a>`}</div>`;
+:`<a onclick="editaConta('${c.id}')">Falta o dia de fechamento — toque para cadastrar</a>`}${c.limite?'':` · <a onclick="editaConta('${c.id}')">cadastrar limite</a>`}</div>`;
+h+=blocoLimite(c);
 if(ds.length){
 const porCat={};ds.forEach(d=>porCat[d.cat]=(porCat[d.cat]||0)+d.valor);
 Object.entries(porCat).sort((x,y)=>y[1]-x[1]).forEach(([k,v])=>{
@@ -584,7 +593,10 @@ const comp=sFix+sParcC+sCart+sAv;
 const renda=(DB.config.entradas||[]).reduce((s,e)=>s+valorEntrada(e),0);
 const pct=renda>0?Math.round(comp/renda*100):null;
 const sobra=renda-comp;
-let h='';
+let h=blocoMeta()+`<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Meta mensal</span><b>${metaVal()?brc(metaVal()):'sem meta'}</b></div>
+<div class="hint">Conta tudo o que vence no mês: contas, faturas e débito/Pix. Vocês recebem um aviso quando o mês chega a 80% e quando passa de 100%.</div>
+<div class="btns" style="padding:10px 0 2px"><button class="act" onclick="editaMeta()">Alterar meta</button></div>
+<div id="avStatus" class="hint" style="padding-top:6px"></div></div></div>`;
 if(comp>0){
 h+=`<div class="eyebrow">já comprometido neste mês</div><div class="card">
 <div class="row"><span class="rnome">Contas fixas do mês</span><span class="rval">${br(sFix+sParcC)}</span></div>
@@ -637,7 +649,8 @@ document.getElementById('sheetB').scrollTop=0;
 document.getElementById('sbg').classList.add('on');document.getElementById('sheet').classList.add('on')}
 function fecha(){document.getElementById('sbg').classList.remove('on');document.getElementById('sheet').classList.remove('on');pendentes=[];LEIT=[]}
 function fabAcao(){novaCompra()}
-function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),3500)}
+let avisoPend=null;
+function toast(t){const e=$('toast');const x=avisoPend;avisoPend=null;t=[t,x&&('⚠ '+x)].filter(Boolean).join(' · ');if(!t)return;e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),3500)}
 
 /* ---------- contas e entradas ---------- */
 function editaConta(id){
@@ -658,7 +671,8 @@ abre(c?c.nome:'Nova conta',`
 <div><label class="f">Compra no dia que fecha</label><select id="fFechInc">
 <option value="0">vai pra próxima</option><option value="1" ${c&&c.fechInclui?'selected':''}>fica nesta</option></select></div>
 </div>
-<div class="hint">É o dia em que a fatura "vira". Com ele, o app sabe sozinho em qual fatura cada compra entra. Na maioria dos bancos, quem compra no próprio dia do fechamento já cai na fatura seguinte.</div>
+<label class="f">Limite do cartão</label><input id="fLim" class="n" type="text" inputmode="decimal" value="${c&&c.limite?br(c.limite):''}" placeholder="ex: 15.000,00"/>
+<div class="hint">O fechamento é o dia em que a fatura "vira". Com ele, o app sabe sozinho em qual fatura cada compra entra. Na maioria dos bancos, quem compra no próprio dia do fechamento já cai na fatura seguinte.</div>
 </div>
 <div id="fContaBox" style="display:${ehC?'none':'block'}">
 <label class="f">Categoria</label><select id="fCat">${cats().concat('Cartão').map(k=>`<option ${c&&c.cat===k?'selected':''}>${esc(k)}</option>`).join('')}</select>
@@ -683,12 +697,13 @@ const dia=Math.max(1,Math.min(31,parseInt($('fDia').value)||1));
 const valor=num($('fValor').value);
 const tipo=$('fTipo').value;
 let cat,pa=null,pt=null,fech=null,fechInclui=false;
-if(tipo==='cartao'){cat='Cartão';fech=parseInt($('fFech').value)||null;if(fech)fech=Math.max(1,Math.min(31,fech));fechInclui=$('fFechInc').value==='1'}
+let limite=null;
+if(tipo==='cartao'){cat='Cartão';limite=num($('fLim').value)||null;fech=parseInt($('fFech').value)||null;if(fech)fech=Math.max(1,Math.min(31,fech));fechInclui=$('fFechInc').value==='1'}
 else{cat=$('fCat').value;pa=parseInt($('fPa').value)||null;pt=parseInt($('fPt').value)||null}
 const pcomp=(pa&&pt)?comp:null;
-if(id){const c=DB.config.contas.find(x=>x.id===id);Object.assign(c,{nome,dia,cat,tipo,pa,pt,pcomp,fech,fechInclui});
+if(id){const c=DB.config.contas.find(x=>x.id===id);Object.assign(c,{nome,dia,cat,tipo,pa,pt,pcomp,fech,fechInclui,limite});
 mes().contas[id]=Object.assign({},mes().contas[id],{valor});}
-else{const nid=uid();DB.config.contas.push({id:nid,nome,dia,valor,cat,tipo,pa,pt,pcomp,fech,fechInclui});mes().contas[nid]={valor}}
+else{const nid=uid();DB.config.contas.push({id:nid,nome,dia,valor,cat,tipo,pa,pt,pcomp,fech,fechInclui,limite});mes().contas[nid]={valor}}
 salva();fecha();render();
 }
 function apagaConta(id){
@@ -792,6 +807,11 @@ t=`${pt}× de <b>${brc(arr[pt-1])}</b>${Math.abs(arr[0]-arr[pt-1])>0.004?` (1ª 
 }else if(nTipo==='rec'){
 t=`Repete todo mês no dia ${+data.slice(8,10)}. A primeira entra ${onde}. Você encerra quando quiser em Cartões → Compras recorrentes.`;
 }else t=`Entra ${onde}.`;
+if(c&&c.limite&&valor){
+const gasto=nTipo==='parc'?parcelasDe(valor,parseInt($('nPt').value)||1,$('nModo').value).reduce((s,v)=>s+v,0):valor;
+const disp=r2(c.limite-usoLimite(c)-gasto);
+t+=`<br/>${disp>=0?`Limite disponível depois desta: <b>${brc(disp)}</b>`:`<b style="color:var(--alert)">Passa o limite em ${brc(-disp)}</b>`}`;
+}
 el.innerHTML=aviso+t;
 }
 function salvaCompra(){
@@ -1213,6 +1233,115 @@ recs().forEach(r=>{if(r.cat===nome)r.cat='Outros'});
 salva();gerenciaCats();render();
 }
 
+/* ---------- limite dos cartões ---------- */
+// Tudo o que ainda pesa no limite: faturas a partir do mês atual que não foram marcadas como pagas (inclui parcelas futuras).
+function usoLimite(c){
+const agora=ym(new Date());let t=0;
+Object.keys(DB.meses).forEach(k=>{if(k<agora)return;const m=DB.meses[k];const e=m.contas&&m.contas[c.id];if(e&&e.pago)return;
+const soma=(m.despesas||[]).filter(d=>d.cartao===c.id).reduce((s,d)=>s+d.valor,0);
+t+=Math.max(soma,e&&e.valor!=null?e.valor:0)});
+return r2(t);
+}
+function blocoLimite(c){
+if(!c.limite)return '';
+const u=usoLimite(c),disp=r2(c.limite-u),p=Math.min(100,Math.round(u/c.limite*100));
+const cor=p>=90?'var(--alert)':p>=75?'var(--warn)':'var(--accent)';
+return `<div class="bar-wrap"><div class="bar-top"><span>Limite ${br(c.limite)} · ${p}% usado</span>
+<b class="${disp<0?'neg':''}">${disp>=0?'disponível '+br(disp):'passou '+br(-disp)}</b></div>
+<div class="bar"><i style="width:${p}%;background:${cor}"></i></div>
+<div class="hint">Comprometido: ${brc(u)}, somando as faturas ainda não pagas e as parcelas futuras. Quando marcar a fatura como paga na aba Mês, o limite volta.</div></div>`;
+}
+
+/* ---------- meta mensal e avisos ---------- */
+function metaVal(){return DB.config.meta===undefined?12000:(+DB.config.meta||0)}
+// Total que vence no mês cp (contas + faturas + débito/Pix) — o mesmo "total mês" do topo.
+function totalEm(cp){
+const m=DB.meses[cp]||{};const mc=m.contas||{};let t=0;
+DB.config.contas.forEach(c=>{if(!ativa(c,cp))return;t+=(mc[c.id]&&mc[c.id].valor!=null)?mc[c.id].valor:c.valor});
+(m.despesas||[]).forEach(d=>{if(!d.cartao)t+=d.valor});
+return r2(t);
+}
+function blocoMeta(){
+const meta=metaVal();if(!meta)return '';
+const t=totalMes(),pct=Math.round(t/meta*100);
+const cor=pct>=100?'var(--alert)':pct>=80?'var(--warn)':'var(--accent)';
+return `<div class="card"><div class="bar-wrap"><div class="bar-top"><span>Meta de ${nomeMes(comp).split(' ')[0]}</span>
+<b class="${pct>=100?'neg':''}">${br(t)} de ${br(meta)} · ${pct}%</b></div>
+<div class="bar"><i style="width:${Math.min(100,pct)}%;background:${cor}"></i></div>
+<div class="hint" ${pct>=100?'style="color:var(--alert)"':''}>${pct>=100?`Passou ${brc(t-meta)} da meta.`:`Faltam ${brc(meta-t)} para a meta.`}</div></div></div>`;
+}
+function checaMetas(cps){
+const meta=metaVal();if(!meta||!DB.config.contas.length)return;
+const agora=ym(new Date());
+cps.forEach(cp=>{
+if(cp<agora||!DB.meses[cp])return;
+const m=DB.meses[cp];m.avisos=m.avisos||{};
+const t=totalEm(cp),pct=t/meta*100;
+const nivel=pct>=100?100:pct>=80?80:0;
+let mudou=false;
+[80,100].forEach(n=>{if(n>nivel&&m.avisos[n]){delete m.avisos[n];mudou=true}});
+if(nivel&&!m.avisos[nivel]){
+m.avisos[nivel]=true;if(nivel===100)m.avisos[80]=true;mudou=true;
+const mesN=nomeMes(cp).split(' ')[0];
+if(nivel===100)enviaAviso(`Meta de ${mesN} estourada`,`O que vence em ${mesN} já soma ${brc(t)}, ${brc(t-meta)} acima da meta de ${brc(meta)}.`,'meta-'+cp);
+else enviaAviso(`${mesN[0].toUpperCase()+mesN.slice(1)} chegou a ${Math.floor(pct)}% da meta`,`Já são ${brc(t)} de ${brc(meta)} vencendo em ${mesN}. Restam ${brc(meta-t)}.`,'meta-'+cp);
+}
+if(mudou)sujos.add(cp);
+});
+}
+async function enviaAviso(titulo,texto,tag){
+avisoPend=titulo;setTimeout(()=>{if(avisoPend)toast('')},80);
+if(!sb||!VAPID)return;
+try{const {error}=await sb.functions.invoke('casa-aviso',{body:{titulo,texto,tag}});if(error)console.warn(error)}catch(e){console.warn(e)}
+}
+function editaMeta(){
+abre('Meta mensal',`<label class="f">Quanto pode vencer por mês</label>
+<input id="mVal" class="n" type="text" inputmode="decimal" value="${metaVal()?br(metaVal()):''}"/>
+<div class="hint">Soma contas, faturas dos cartões e débito/Pix que vencem no mês. Deixe vazio para desligar a meta.</div>
+<div class="btns" style="padding:18px 0 4px"><button class="act pri" onclick="salvaMeta()">Salvar</button></div>`);
+}
+function salvaMeta(){DB.config.meta=num($('mVal').value)||0;Object.values(DB.meses).forEach(m=>{delete m.avisos});
+Object.keys(DB.meses).forEach(k=>sujos.add(k));salva();fecha();render()}
+
+function pushOk(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function ehIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)}
+function instalado(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
+function b64u(s){const b=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))}
+async function atualizaAvStatus(){
+const el=$('avStatus');if(!el)return;let h;
+if(!sb)h='Os avisos no celular funcionam com a conta conectada.';
+else if(!VAPID)h='Para receber avisos no celular, falta a chave de avisos no config.js.';
+else if(!pushOk())h=ehIOS()&&!instalado()?'<b>No iPhone:</b> toque em Compartilhar → "Adicionar à Tela de Início" e abra o app pelo ícone. Aí aparece o botão para ativar os avisos.':'Este navegador não aceita notificações.';
+else if(Notification.permission==='denied')h='As notificações estão bloqueadas neste celular. Libere nas configurações do aparelho para o app Casa.';
+else{
+let sub=null;try{const reg=await navigator.serviceWorker.getRegistration();sub=reg&&await reg.pushManager.getSubscription()}catch(e){}
+h=sub?`Avisos ativos neste celular. <button class="act" style="margin-left:6px;padding:5px 10px" onclick="testeAviso()">Mandar teste</button>`
+:`<button class="act pri" style="width:100%" onclick="ativarAvisos()">Ativar avisos neste celular</button>`;
+}
+if($('avStatus'))$('avStatus').innerHTML=h;
+}
+async function ativarAvisos(){
+try{
+const perm=await Notification.requestPermission();
+if(perm!=='granted'){alert('Sem a permissão, o celular não mostra os avisos. Dá para liberar depois nas configurações.');atualizaAvStatus();return}
+await navigator.serviceWorker.register('sw-casa.js');
+const reg=await navigator.serviceWorker.ready;
+let sub=await reg.pushManager.getSubscription();
+if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)});
+const j=sub.toJSON();
+const {error}=await sb.from('casa_push').upsert({endpoint:j.endpoint,sub:j});
+if(error)throw error;
+toast('Avisos ativados neste celular');
+}catch(e){alert('Não consegui ativar os avisos: '+(e&&e.message||e))}
+atualizaAvStatus();
+}
+async function testeAviso(){
+if(!sb)return;
+const {data,error}=await sb.functions.invoke('casa-aviso',{body:{titulo:'Teste do app Casa',texto:'Se chegou, os avisos estão funcionando nos celulares cadastrados.',tag:'teste'}});
+if(error)alert('O servidor de avisos não respondeu: '+error.message);
+else toast('Teste enviado para '+((data&&data.enviados)||0)+' celular(es)');
+}
+
 /* ---------- login ---------- */
 function mostraLogin(msg){
 document.getElementById('login').classList.add('on');
@@ -1238,6 +1367,7 @@ await sb.auth.signOut();location.reload();
 }
 
 (async function(){
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw-casa.js').catch(()=>{})}
 if(SUPABASE_URL&&SUPABASE_KEY){
 await new Promise(r=>{const s=document.createElement('script');
 s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=r;s.onerror=r;document.head.appendChild(s)});
